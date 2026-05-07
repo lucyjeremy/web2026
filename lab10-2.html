@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>북마크 매니저</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 2rem;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .form {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .form input {
+            flex: 1;
+            padding: 0.5rem;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .name {
+            flex: 1;
+            cursor: pointer;
+            color: #0066cc;
+        }
+
+        .name:hover {
+            text-decoration: underline;
+        }
+
+        .star {
+            cursor: pointer;
+            user-select: none;
+            color: #ccc;
+            font-size: 1.2rem;
+        }
+
+        .star.active {
+            color: gold;
+        }
+
+        .delete-btn {
+            background: #ff5252;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.6rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>나의 북마크</h1>
+    <div class="form">
+        <input type="text" id="nameInput" placeholder="사이트 이름">
+        <input type="url" id="urlInput" placeholder="https://...">
+        <button id="addBtn">추가</button>
+    </div>
+    <ul id="bookmarkList"></ul>
+
+    <script>
+        const nameInput = document.querySelector('#nameInput');
+        const urlInput = document.querySelector('#urlInput');
+        const addBtn = document.querySelector('#addBtn');
+        const list = document.querySelector('#bookmarkList');
+
+        // 데이터 모델: [{ id, name, url, starred }, ...]
+        let bookmarks = [];
+
+        // TODO 1: 페이지 로드 시 localStorage에서 bookmarks 배열 복원 + 렌더링
+        //         힌트: JSON.parse, render() 호출
+
+        // TODO 2: render() — bookmarks 배열을 화면에 그리기
+        //         힌트: list.innerHTML = bookmarks.map(b => `<li data-id="${b.id}">...</li>`).join('')
+
+        // TODO 3: 추가 버튼 — 이름+URL 받아서 bookmarks에 추가 + 저장 + 렌더링
+
+        // TODO 4: 이벤트 위임 — list에 click 1개로 별표 토글 / 삭제 / 사이트명 클릭 시 window.open
+    </script>
+</body>
+
+</html>

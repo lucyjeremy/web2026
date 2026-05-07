@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>글자 수 카운터</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .count {
+            color: #666;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>나의 메모</h1>
+    <textarea id="memoText" placeholder="여기에 글을 쓰세요..."></textarea>
+    <div class="count">
+        글자: <span id="charCount">0</span> · 단어: <span id="wordCount">0</span>
+    </div>
+
+    <script>
+        const textarea = document.querySelector('#memoText');
+        const charEl = document.querySelector('#charCount');
+        const wordEl = document.querySelector('#wordCount');
+
+        // TODO 1: 페이지 로드 시 localStorage에서 저장된 글 복원
+        //         힌트: localStorage.getItem('memo'), textarea.value = ...
+        const savedMemo = localStorage.getItem('memo'); //저장된 글 가져오기 (GitHub Copilot으로 생성 후 검증 완료)
+        if (savedMemo) { //저장된 글이 있으면 
+            textarea.value = savedMemo; //글 복원 (GitHub Copilot으로 생성 후 검증 완료)
+            charEl.textContent = savedMemo.length; //글자 수 복원
+            wordEl.textContent = savedMemo.trim().split(/\s+/).filter(w => w).length; //단어 수 복원 (글 앞뒤의 공백 삭제, 공백으로 분리, 빈 문자열 제거 후 길이 계산)
+        }
+
+        // TODO 2: textarea의 input 이벤트로 글자/단어 수 갱신 + localStorage 저장
+        //         힌트: text.length (글자 수), text.trim().split(/\s+/).filter(w => w).length (단어 수)
+        textarea.addEventListener('input', () => { //(GitHub Copilot으로 생성 후 검증 완료)
+            const text = textarea.value; //글을 변수화
+            charEl.textContent = text.length; //글자 수 갱신
+            wordEl.textContent = text.trim().split(/\s+/).filter(w => w).length; //단어 수 갱신
+            localStorage.setItem('memo', text); //localStorage에 저장
+        });
+    </script>
+</body>
+
+</html>
