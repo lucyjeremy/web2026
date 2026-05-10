@@ -88,17 +88,68 @@
         const list = document.querySelector('#bookmarkList');
 
         // 데이터 모델: [{ id, name, url, starred }, ...]
-        let bookmarks = [];
+        let bookmarks = [{ id: 1, name: "Google", url: "https://www.google.com", starred: false }];
 
         // TODO 1: 페이지 로드 시 localStorage에서 bookmarks 배열 복원 + 렌더링
         //         힌트: JSON.parse, render() 호출
+        const savedBookmarks = localStorage.getItem('bookmarks');
+        if (savedBookmarks) {
+            bookmarks = JSON.parse(savedBookmarks);
+        }
+        render();
 
         // TODO 2: render() — bookmarks 배열을 화면에 그리기
         //         힌트: list.innerHTML = bookmarks.map(b => `<li data-id="${b.id}">...</li>`).join('')
+        function render() {
+            list.innerHTML = bookmarks.map(b => `
+                <li data-id="${b.id}">
+                    <span class="name">${b.name}</span>
+                    <span class="star ${b.starred ? 'active' : ''}">★</span>
+                    <button class="delete-btn">삭제</button>
+                </li>
+            `).join('');
+        }
 
         // TODO 3: 추가 버튼 — 이름+URL 받아서 bookmarks에 추가 + 저장 + 렌더링
+        addBtn.addEventListener('click', () => {
+            const name = nameInput.value.trim();
+            const url = urlInput.value.trim();
+            if (name && url) {
+                const newBookmark = {
+                    id: Date.now(),
+                    name,
+                    url,
+                    starred: false
+                };
+                bookmarks.push(newBookmark);
+                localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+                render();
+                nameInput.value = '';
+                urlInput.value = '';
+            }
+        });
 
         // TODO 4: 이벤트 위임 — list에 click 1개로 별표 토글 / 삭제 / 사이트명 클릭 시 window.open
+        list.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (!li) return;
+            const id = parseInt(li.dataset.id);
+            const bookmark = bookmarks.find(b => b.id === id);
+            if (e.target.classList.contains('star')) {
+                // 별표 토글
+                bookmark.starred = !bookmark.starred;
+                localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+                render();
+            } else if (e.target.classList.contains('delete-btn')) {
+                // 삭제
+                bookmarks = bookmarks.filter(b => b.id !== id);
+                localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+                render();
+            } else if (e.target.classList.contains('name')) {
+                // 사이트명 클릭
+                window.open(bookmark.url, '_blank');
+            }
+        });
     </script>
 </body>
 
