@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-05 · 클러스터링 (라이브 데모 3)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 800px; height: 500px; border: 1px solid #ddd; border-radius: 6px; }
+    .err { background: #fee; padding: 8px 12px; border-left: 4px solid #c00; }
+    button { padding: 6px 12px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>S2-05 · 마커 30개 + 클러스터링</h1>
+  <p>슬라이드: <b>클러스터링</b> · 가까운 마커끼리 묶어 보여주기. 줌 인하면 풀림.</p>
+
+  <button id="zoomOut">줌 아웃 (모이는 모습)</button>
+  <button id="zoomIn">줌 인 (풀리는 모습)</button>
+  <div id="map" style="margin-top:8px"></div>
+  <p id="hint"></p>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script>
+    if (window._noConfig || !window.KAKAO_JS_KEY || window.KAKAO_JS_KEY.includes('붙여넣기')) {
+      document.getElementById('hint').innerHTML = '<div class="err">⚠️ config.js를 설정하세요.</div>';
+    } else {
+      const sdk = document.createElement('script');
+      sdk.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${window.KAKAO_JS_KEY}&autoload=false&libraries=clusterer`;
+      sdk.onload = () => kakao.maps.load(initMap);
+      document.head.appendChild(sdk);
+    }
+
+    function initMap() {
+      const baseLat = 37.5447, baseLng = 126.9645;
+      const map = new kakao.maps.Map(document.getElementById('map'), {
+        center: new kakao.maps.LatLng(baseLat, baseLng),
+        level: 6
+      });
+
+      // 임의 마커 30개 — 학교 주변 살짝씩 흩뿌리기
+      const markers = [];
+      for (let i = 0; i < 30; i++) {
+        const lat = baseLat + (Math.random() - 0.5) * 0.04;
+        const lng = baseLng + (Math.random() - 0.5) * 0.04;
+        markers.push(new kakao.maps.Marker({
+          position: new kakao.maps.LatLng(lat, lng)
+        }));
+      }
+
+      const clusterer = new kakao.maps.MarkerClusterer({
+        map,
+        averageCenter: true,
+        minLevel: 3
+      });
+      clusterer.addMarkers(markers);
+
+      document.getElementById('zoomOut').onclick = () => map.setLevel(map.getLevel() + 1);
+      document.getElementById('zoomIn').onclick  = () => map.setLevel(Math.max(1, map.getLevel() - 1));
+    }
+  </script>
+</body>
+</html>

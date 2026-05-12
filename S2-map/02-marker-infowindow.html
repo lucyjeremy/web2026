@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-02 · 마커 + 팝업 (Popup)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 700px; height: 450px; border: 1px solid #ddd; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>S2-02 · 마커 + 팝업</h1>
+  <p>Leaflet에서는 InfoWindow를 <b>Popup</b>이라 부른다. 카카오 InfoWindow와 거의 같은 개념.</p>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([37.5447, 126.9645], 16);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // 마커 + 팝업 — 메서드 체이닝 한 줄로 끝
+    L.marker([37.5447, 126.9645])
+      .addTo(map)
+      .bindPopup('<div style="padding:4px"><b>📍 숙명여대 정문</b><br>웹 강의 본거지</div>')
+      .openPopup();   // 처음부터 열어두려면. 빼면 클릭 시 열림.
+  </script>
+
+  <h3>비교</h3>
+  <pre style="background:#f5f5f5;padding:10px;border-radius:4px;font-size:12px;overflow:auto">
+// 카카오 (4줄)
+const marker = new kakao.maps.Marker({ position: ..., map, title: '...' });
+const info = new kakao.maps.InfoWindow({ content: '...' });
+kakao.maps.event.addListener(marker, 'click', () => info.open(map, marker));
+
+// Leaflet (1줄)
+L.marker([lat, lng]).addTo(map).bindPopup('...');   // 클릭 시 자동으로 열림</pre>
+
+  <h3>학생 자주 묻는 것</h3>
+  <ul>
+    <li>좌표 순서: Leaflet도 <code>[위도, 경도]</code> — <b>위도 먼저</b> (카카오와 동일)</li>
+    <li>여러 팝업 동시 열림? — Leaflet은 기본적으로 1개만 열림 (직전 자동 닫힘)</li>
+    <li>마우스오버 툴팁: <code>.bindTooltip('이름')</code></li>
+  </ul>
+</body>
+</html>

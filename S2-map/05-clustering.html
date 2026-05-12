@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-05 · 클러스터링 (라이브 데모 3)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 800px; height: 500px; border: 1px solid #ddd; border-radius: 6px; }
+    button { padding: 6px 12px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>S2-05 · 마커 30개 + 클러스터링</h1>
+  <p>마커가 많을 때 가까운 것끼리 묶어 보여준다. 줌 인하면 풀림.</p>
+
+  <button id="zoomOut">줌 아웃 (모이는 모습)</button>
+  <button id="zoomIn">줌 인 (풀리는 모습)</button>
+  <div id="map" style="margin-top:8px"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script>
+    const baseLat = 37.5447, baseLng = 126.9645;
+    const map = L.map('map').setView([baseLat, baseLng], 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // 1) 클러스터 그룹 생성
+    const cluster = L.markerClusterGroup();
+
+    // 2) 마커 30개 — 학교 주변 살짝씩 흩뿌리기
+    for (let i = 0; i < 30; i++) {
+      const lat = baseLat + (Math.random() - 0.5) * 0.04;
+      const lng = baseLng + (Math.random() - 0.5) * 0.04;
+      cluster.addLayer(L.marker([lat, lng]));
+    }
+
+    // 3) 클러스터를 지도에 추가 (그룹 통째로)
+    map.addLayer(cluster);
+
+    document.getElementById('zoomOut').onclick = () => map.setZoom(map.getZoom() - 1);
+    document.getElementById('zoomIn').onclick  = () => map.setZoom(map.getZoom() + 1);
+  </script>
+
+  <h3>핵심 3줄</h3>
+  <pre style="background:#f5f5f5;padding:10px;border-radius:4px;font-size:13px">
+const cluster = L.markerClusterGroup();         // 1) 그룹 만들기
+markers.forEach(m => cluster.addLayer(m));       // 2) 마커 넣기
+map.addLayer(cluster);                          // 3) 지도에 그룹 통째로</pre>
+
+  <p>플러그인 <code>leaflet.markercluster</code>는 별도 CDN으로 로드. CSS 2개 + JS 1개.</p>
+</body>
+</html>

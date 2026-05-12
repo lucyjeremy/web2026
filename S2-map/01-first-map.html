@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-01 · Leaflet — 첫 지도</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 700px; height: 450px; border: 1px solid #ddd; border-radius: 6px; }
+    .info { background: #d4edda; padding: 8px 12px; border-left: 4px solid #28a745;
+            font-size: 13px; border-radius: 4px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>S2-01 · 첫 지도 띄우기 (라이브 데모 1)</h1>
+  <div class="info">
+    ✅ Leaflet + OpenStreetMap — 키 발급, 카드 등록, 도메인 등록, 회원가입 모두 <b>불필요</b>.
+    <code>&lt;script&gt;</code>만 불러오면 끝.
+  </div>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // 1) 지도 생성 — 컨테이너 id + 중심 좌표 + 줌 레벨
+    const map = L.map('map').setView([37.5447, 126.9645], 16);  // 숙명여대 정문
+
+    // 2) 타일 레이어 — OpenStreetMap (저작권 표기는 의무)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+  </script>
+
+  <h3>핵심 두 줄 요약</h3>
+  <ul>
+    <li><code>L.map(id).setView([lat, lng], zoom)</code> — 지도 생성 + 중심·줌 설정</li>
+    <li><code>L.tileLayer(URL).addTo(map)</code> — 타일 이미지(OSM)를 지도에 얹기</li>
+  </ul>
+
+  <h3>지도가 안 뜨면?</h3>
+  <ul>
+    <li><code>leaflet.css</code> 누락 — 안 불러오면 타일이 깨져서 보임</li>
+    <li>컨테이너 <code>#map</code>에 <b>height</b>가 없음 — Leaflet은 명시적 높이 필요</li>
+    <li>인터넷 차단 — CDN(unpkg.com, tile.openstreetmap.org) 접근 가능한지 확인</li>
+  </ul>
+</body>
+</html>

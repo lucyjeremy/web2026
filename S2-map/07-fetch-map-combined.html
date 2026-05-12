@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-07 · fetch + 지도 결합 (학생 배포 — mock fetch)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 900px; height: 550px; border: 1px solid #ddd; border-radius: 6px; }
+    #status { color: #555; min-height: 1.4em; }
+    .info { background: #d4edda; padding: 8px 12px; border-left: 4px solid #28a745;
+            font-size: 13px; border-radius: 4px; margin-bottom: 8px; }
+    .err { background: #fee; padding: 8px 12px; border-left: 4px solid #c00; }
+  </style>
+</head>
+<body>
+  <h1>S2-07 · 측정소를 지도 위에 ⭐ <small>(학생 배포용)</small></h1>
+  <div class="info">
+    📦 fetch 부분은 <code>./mock/stations.json</code> 사용 (키 없이 동작).<br>
+    🗺️ 지도는 Leaflet + OSM (키·카드·인증 불필요).<br>
+    실제 API로 전환: <code>USE_REAL = true</code> 한 줄 + config.js에 키.
+  </div>
+
+  <p id="status">대기 중</p>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script>
+    // ⬇️ 실제 API 사용 시 이 두 줄만 바꾸기
+    const USE_REAL = false;
+
+    const REAL_ENDPOINT = 'https://apis.data.go.kr/B552584/MsrstnInfoInqireSvc/getMsrstnList';
+    const MOCK_URL = './mock/stations.json';
+
+    const map = L.map('map').setView([37.5447, 126.9645], 11);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    loadStations();
+
+    async function loadStations() {
+      const status = document.getElementById('status');
+      try {
+        status.textContent = '측정소 데이터 로딩 중...';
+
+        let url;
+        if (USE_REAL) {
+          if (window._noConfig || !window.AIR_API_KEY || window.AIR_API_KEY.includes('여기에')) {
+            throw new Error('실제 API 사용하려면 config.js에 AIR_API_KEY 입력');
+          }
+          const params = new URLSearchParams({
+            serviceKey: window.AIR_API_KEY,
+            returnType: 'json',
+            numOfRows: '50',
+            pageNo: '1',
+            addr: '서울'
+          });
+          url = `${REAL_ENDPOINT}?${params}`;
+        } else {
+          url = MOCK_URL;
+        }
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const stations = data?.response?.body?.items || [];
+        if (!stations.length) throw new Error('데이터 없음');
+
+        status.textContent = `서울 측정소 ${stations.length}곳을 지도에 표시 ${USE_REAL ? '(실제 API)' : '(mock 데이터)'}`;
+        console.log('측정소:', stations);
+
+        stations.forEach(s => {
+          // ⚠️ 측정소 API 함정: dmX=위도, dmY=경도 (이름과 값이 반대 — 한국 TM 관습)
+          const lat = Number(s.dmX), lng = Number(s.dmY);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+          L.marker([lat, lng])
+            .addTo(map)
+            .bindPopup(`
+              <div style="padding:4px;font-size:13px">
+                <b>${s.stationName}</b><br>${s.addr || ''}<br>
+                <small>${s.year || ''} 설치</small>
+              </div>
+            `)
+            .bindTooltip(s.stationName);
+        });
+      } catch (e) {
+        status.innerHTML = `<span class="err">에러: ${e.message}</span>`;
+        console.error(e);
+      }
+    }
+  </script>
+</body>
+</html>

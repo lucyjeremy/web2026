@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-01 · 카카오 맵 — 첫 지도</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 700px; height: 450px; border: 1px solid #ddd; border-radius: 6px; }
+    .err { background: #fee; padding: 8px 12px; border-left: 4px solid #c00; }
+  </style>
+</head>
+<body>
+  <h1>S2-01 · 첫 지도 띄우기 (라이브 데모 1)</h1>
+  <p>슬라이드: <b>SDK 불러오기 + 첫 지도</b> — 숙명여대 정문 좌표</p>
+
+  <div id="map"></div>
+  <p id="hint"></p>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script>
+    if (window._noConfig || !window.KAKAO_JS_KEY || window.KAKAO_JS_KEY.includes('붙여넣기')) {
+      document.getElementById('hint').innerHTML =
+        '<div class="err">⚠️ config.js를 설정하세요. (config.example.js 복사 후 카카오 JavaScript 키 입력)</div>';
+    } else {
+      // SDK는 비동기 로드 — onload 이후에 kakao.maps 사용
+      const sdk = document.createElement('script');
+      sdk.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${window.KAKAO_JS_KEY}&autoload=false`;
+      sdk.onload = () => {
+        kakao.maps.load(() => {
+          const container = document.getElementById('map');
+          const options = {
+            center: new kakao.maps.LatLng(37.5447, 126.9645),  // 숙명여대 정문
+            level: 3
+          };
+          new kakao.maps.Map(container, options);
+        });
+      };
+      document.head.appendChild(sdk);
+    }
+  </script>
+
+  <h3>지도가 회색이면?</h3>
+  <ul>
+    <li>도메인 등록 누락 (99% 원인) — developers.kakao.com 플랫폼 → Web 설정 확인</li>
+    <li>JavaScript 키와 REST API 키 헷갈림 — 우리는 <b>JavaScript 키</b></li>
+    <li>Console에 빨간 에러 떠있는지 확인</li>
+  </ul>
+</body>
+</html>

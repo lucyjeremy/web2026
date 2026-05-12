@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Note12-02 · Auth — Google 로그인</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; line-height: 1.6; max-width: 800px; }
+    button { padding: 10px 18px; font-size: 15px; cursor: pointer; margin-right: 8px; }
+    .user { background: #d4edda; padding: 12px; border-radius: 6px; margin-top: 16px; }
+    .user img { width: 40px; height: 40px; border-radius: 50%; vertical-align: middle; margin-right: 8px; }
+    .err { background: #fee; padding: 8px 12px; border-left: 4px solid #c00; }
+    pre { background: #f5f5f5; padding: 12px; border-radius: 6px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Note12-02 · Google 로그인 (라이브 데모 2)</h1>
+  <p>슬라이드: <b>Auth 핵심 4함수</b> + <b>Google 로그인 5줄</b> + <b>onAuthStateChanged 패턴</b></p>
+
+  <div id="loggedOut">
+    <p>로그인하지 않은 상태입니다.</p>
+    <button id="googleBtn">Google로 로그인</button>
+    <button id="anonBtn">익명 로그인</button>
+  </div>
+
+  <div id="loggedIn" class="user" style="display:none">
+    <img id="photo" alt="" />
+    <span id="userInfo"></span>
+    <button id="logoutBtn" style="margin-left:12px">로그아웃</button>
+  </div>
+
+  <p id="hint"></p>
+
+  <h2>코드 핵심</h2>
+  <pre>// Google 로그인
+signInWithPopup(auth, new GoogleAuthProvider());
+
+// 로그인 상태 *구독* — 변할 때마다 자동 호출
+onAuthStateChanged(auth, (user) => {
+  if (user) showLoggedIn(user);
+  else      showLoggedOut();
+});</pre>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script type="module">
+    const hint = document.getElementById('hint');
+
+    if (window._noConfig || !window.firebaseConfig || window.firebaseConfig.apiKey.includes('여기에')) {
+      hint.innerHTML = '<div class="err">⚠️ config.js 미설정.</div>';
+      throw new Error('config 없음');
+    }
+
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
+    const { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, signOut, onAuthStateChanged }
+      = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
+
+    const app = initializeApp(window.firebaseConfig);
+    const auth = getAuth(app);
+
+    const loggedOut = document.getElementById('loggedOut');
+    const loggedIn  = document.getElementById('loggedIn');
+
+    document.getElementById('googleBtn').onclick = async () => {
+      try {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+      } catch (e) {
+        hint.innerHTML = `<div class="err">로그인 실패: ${e.code} — ${e.message}</div>`;
+        // 자주 보는 에러:
+        // auth/popup-blocked: 브라우저 팝업 차단
+        // auth/operation-not-allowed: Auth → Sign-in method에서 Google 활성화 안 함
+      }
+    };
+
+    document.getElementById('anonBtn').onclick = async () => {
+      try {
+        await signInAnonymously(auth);
+      } catch (e) {
+        hint.innerHTML =
+          `<div class="err">익명 로그인 실패: <code>${e.code}</code> — ${e.message}<br>` +
+          `<small>가장 흔한 원인: Firebase 콘솔 → Authentication → Sign-in method → <b>Anonymous</b>가 비활성 상태. 활성화 후 다시 시도.</small></div>`;
+        console.error(e);
+      }
+    };
+    document.getElementById('logoutBtn').onclick = () => signOut(auth);
+
+    // ⭐ onAuthStateChanged — 페이지 진입 시, 로그인/로그아웃 시 모두 호출
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        loggedOut.style.display = 'none';
+        loggedIn.style.display = '';
+        document.getElementById('photo').src = user.photoURL || '';
+        document.getElementById('userInfo').innerHTML =
+          `<b>${user.displayName || '(익명 사용자)'}</b><br>` +
+          `<small>${user.email || 'anonymous'}</small><br>` +
+          `<small>UID: <code>${user.uid}</code></small>`;
+        console.log('로그인:', user);
+      } else {
+        loggedOut.style.display = '';
+        loggedIn.style.display = 'none';
+        console.log('로그아웃 상태');
+      }
+    });
+  </script>
+
+  <h3>자주 막히는 곳</h3>
+  <ul>
+    <li><b>팝업 안 뜸</b> — Auth → Sign-in method 탭에서 Google 활성화 안 함</li>
+    <li><b>"popup-blocked"</b> — 브라우저 주소창 옆 아이콘으로 팝업 허용</li>
+    <li><b>익명 로그인 안 됨 (<code>auth/operation-not-allowed</code>)</b> — Auth → Sign-in method 탭에서 <b>Anonymous</b> 활성화 안 함. 콘솔에서 Enable 누르고 저장</li>
+    <li><b>새로고침 후에도 로그인 유지됨</b> — 정상. <code>onAuthStateChanged</code>가 세션 복원</li>
+    <li><b>UID</b> — 24자 문자열, 사용자마다 고유. Firestore 문서의 <code>authorId</code>와 연결할 키</li>
+  </ul>
+</body>
+</html>

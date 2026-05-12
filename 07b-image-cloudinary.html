@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Note12-07b · 이미지 첨부 (Cloudinary + Firestore)</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 24px;
+      line-height: 1.6;
+      max-width: 820px;
+    }
+
+    button {
+      padding: 8px 16px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    input,
+    textarea {
+      padding: 8px 10px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 50px;
+      resize: vertical;
+    }
+
+    .row {
+      padding: 12px 14px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .row img {
+      width: 150px;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+
+    .row .body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .row .meta {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    .preview {
+      display: inline-block;
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 6px;
+      vertical-align: middle;
+      margin-right: 8px;
+      border: 1px solid #ddd;
+    }
+
+    .info {
+      background: #fff3cd;
+      padding: 10px 14px;
+      border-left: 4px solid #f39c12;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+
+    .danger {
+      background: #fee;
+      padding: 10px 14px;
+      border-left: 4px solid #c00;
+      font-size: 13px;
+      border-radius: 4px;
+    }
+
+    .err {
+      background: #fee;
+      padding: 8px 12px;
+      border-left: 4px solid #c00;
+    }
+
+    code {
+      background: #f0f0f0;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .progress {
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 8px;
+      font-size: 12px;
+      color: #888;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Note12-07b · 이미지 첨부 (Cloudinary + Firestore)</h1>
+  <p>슬라이드: <b>Firebase Storage 무료 대안 ② — 외부 CDN 통합</b></p>
+
+  <div class="info">
+    📌 <b>방식</b>: 이미지를 <b>Cloudinary에 직접 업로드</b>(서버 없이 unsigned preset) → 받은 <b>CDN URL을 Firestore에 저장</b>.
+    이미지 본체는 Cloudinary, 메타데이터는 Firestore. <b>실서비스에 가까운 표준 패턴</b>.
+    <br><br>
+    🎁 <b>장점</b>: 원본 크기 OK, 전세계 CDN, URL에 <code>w_400,q_auto,f_auto</code> 붙이면 자동 리사이즈·압축·WebP 변환.
+    Cloudinary 무료: 25GB 저장 + 25GB 대역폭/월 (학기 프로젝트 100배 이상).
+  </div>
+
+  <div class="danger" id="cloudinaryHint" style="display:none">
+    ⚠️ <b>config.js의 cloudinaryConfig 미설정</b>.
+    <code>config.example.js</code>의 cloudinary 발급 안내(주석) 참고 → <code>cloudName</code>과 <code>uploadPreset</code> 채우세요.
+  </div>
+
+  <div id="auth"></div>
+  <hr style="margin:18px 0">
+
+  <div id="composer" style="display:none">
+    <p>
+      <input type="file" id="photo" accept="image/*" />
+      <span id="previewBox"></span>
+      <span class="progress" id="progress"></span>
+    </p>
+    <textarea id="text" placeholder="짧은 글 한 줄 (이미지 없이 글만도 OK)"></textarea>
+    <p><button id="submit">올리기</button> <span id="status"></span></p>
+  </div>
+  <div id="list"></div>
+
+  <h3>핵심 코드</h3>
+  <pre style="background:#f5f5f5;padding:12px;border-radius:6px;font-size:12px;overflow:auto">// 1) Cloudinary에 직접 업로드 (서버 없음, unsigned preset)
+async function uploadToCloudinary(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', UPLOAD_PRESET);  // ⭐ unsigned mode 필수
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+    { method: 'POST', body: fd }
+  );
+  if (!res.ok) throw new Error('업로드 실패');
+  const data = await res.json();
+  return { url: data.secure_url, publicId: data.public_id };
+}
+
+// 2) Firestore에는 URL과 publicId만 (이미지 본체 X)
+await addDoc(collection(db, 'posts_cloud'), {
+  text, photoURL: url, photoPublicId: publicId,
+  authorId, authorName, createdAt: serverTimestamp()
+});
+
+// 3) 표시할 때 자동 리사이즈 — URL에 transformation 추가
+const thumb = photoURL.replace('/upload/', '/upload/w_400,h_400,c_fill,q_auto,f_auto/');
+&lt;img src="${thumb}"&gt;</pre>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script type="module">
+    // ─── 사전 검증 ───
+    if (window._noConfig || !window.firebaseConfig || window.firebaseConfig.apiKey.includes('여기에')) {
+      document.body.insertAdjacentHTML('afterbegin', '<div class="err">⚠️ config.js를 설정하세요.</div>');
+      throw new Error('firebase config 없음');
+    }
+    const cc = window.cloudinaryConfig;
+    const cloudinaryReady = cc && cc.cloudName && cc.uploadPreset
+      && !cc.cloudName.includes('여기에') && !cc.uploadPreset.includes('여기에');
+    if (!cloudinaryReady) {
+      document.getElementById('cloudinaryHint').style.display = '';
+    }
+
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
+    const { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+      = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
+    const { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp }
+      = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+
+    const app = initializeApp(window.firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentUser = null;
+    let unsubscribe = null;
+    let pendingFile = null;
+    const authDiv = document.getElementById('auth');
+    const composer = document.getElementById('composer');
+    const list = document.getElementById('list');
+    const previewBox = document.getElementById('previewBox');
+    const progress = document.getElementById('progress');
+    const status = document.getElementById('status');
+
+    // ═══ Auth UI + 구독 재시작 ═══
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+      if (user) {
+        authDiv.innerHTML = `로그인: <b>${user.displayName}</b>
+          <button id="logoutBtn" style="font-size:12px;margin-left:8px">로그아웃</button>`;
+        document.getElementById('logoutBtn').onclick = () => signOut(auth);
+        composer.style.display = '';
+        if (unsubscribe) unsubscribe();
+        unsubscribe = subscribePosts();
+      } else {
+        authDiv.innerHTML = `<button id="loginBtn">Google 로그인</button>`;
+        document.getElementById('loginBtn').onclick = () =>
+          signInWithPopup(auth, new GoogleAuthProvider());
+        composer.style.display = 'none';
+        if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+        list.innerHTML = '<p style="color:#888">로그인하면 글을 볼 수 있습니다.</p>';
+      }
+    });
+
+    // ═══ 파일 선택 → 로컬 미리보기 (업로드는 [올리기] 클릭 시) ═══
+    document.getElementById('photo').addEventListener('change', (e) => {
+      pendingFile = e.target.files[0] || null;
+      previewBox.innerHTML = '';
+      if (!pendingFile) return;
+      const localURL = URL.createObjectURL(pendingFile);
+      previewBox.innerHTML = `<img class="preview" src="${localURL}">
+        <span style="font-size:11px;color:#888">${kb(pendingFile.size)}</span>`;
+    });
+
+    // ═══ 글 + 이미지 추가 ═══
+    document.getElementById('submit').onclick = async () => {
+      const text = document.getElementById('text').value.trim();
+      if (!text && !pendingFile) return;
+      if (!currentUser) return;
+
+      try {
+        let photoURL = null, photoPublicId = null;
+
+        // 이미지가 있으면 먼저 Cloudinary 업로드
+        if (pendingFile) {
+          if (!cloudinaryReady) throw new Error('Cloudinary 미설정 — config.js의 cloudinaryConfig 채우기');
+          progress.textContent = '☁️ 업로드 중...';
+          const result = await uploadToCloudinary(pendingFile);
+          photoURL = result.url;
+          photoPublicId = result.publicId;
+          progress.textContent = '✅ 업로드 완료';
+        }
+
+        // Firestore에 메타데이터 저장
+        const data = {
+          text,
+          authorId: currentUser.uid,
+          authorName: currentUser.displayName,
+          createdAt: serverTimestamp()
+        };
+        if (photoURL) {
+          data.photoURL = photoURL;
+          data.photoPublicId = photoPublicId;   // 추후 삭제용 (Cloudinary admin API 필요)
+        }
+        await addDoc(collection(db, 'posts_cloud'), data);
+
+        // 입력 초기화
+        document.getElementById('text').value = '';
+        document.getElementById('photo').value = '';
+        previewBox.innerHTML = '';
+        pendingFile = null;
+        setTimeout(() => progress.textContent = '', 1500);
+      } catch (err) {
+        progress.textContent = '';
+        status.innerHTML = `<span class="err" style="padding:2px 6px">${err.code || err.message}</span>`;
+        console.error(err);
+      }
+    };
+
+    // ═══ Cloudinary 업로드 (unsigned) ═══
+    async function uploadToCloudinary(file) {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('upload_preset', cc.uploadPreset);
+
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${cc.cloudName}/image/upload`,
+        { method: 'POST', body: fd }
+      );
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(`Cloudinary ${res.status}: ${errBody.error?.message || res.statusText}`);
+      }
+      const data = await res.json();
+      return { url: data.secure_url, publicId: data.public_id };
+    }
+
+    // ═══ 실시간 구독 — 자동 리사이즈된 썸네일 표시 ═══
+    function subscribePosts() {
+      const q = query(collection(db, 'posts_cloud'), orderBy('createdAt', 'desc'));
+      return onSnapshot(q, (snap) => {
+        const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        list.innerHTML = items.map(m => `
+          <div class="row" data-id="${m.id}">
+            ${m.photoURL ? `<img src="${thumbnail(m.photoURL, 300)}" alt="">` : ''}
+            <div class="body">
+              <div>${escape(m.text)}</div>
+              <div class="meta">
+                ${escape(m.authorName || '?')} ·
+                ${m.createdAt?.toDate ? m.createdAt.toDate().toLocaleString() : '대기'}
+                ${m.photoURL ? `· <a href="${m.photoURL}" target="_blank" style="font-size:11px">원본 ↗</a>` : ''}
+                ${m.authorId === currentUser?.uid ?
+            '<button class="del" style="font-size:11px;margin-left:8px">삭제</button>' : ''}
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }, (err) => {
+        list.innerHTML = `<div class="err">읽기 실패: <code>${err.code}</code> — ${err.message}</div>`;
+        console.error('onSnapshot error:', err);
+      });
+    }
+
+    // ═══ 본인 글 삭제 ═══
+    list.addEventListener('click', async (e) => {
+      if (!e.target.classList.contains('del')) return;
+      const id = e.target.closest('.row').dataset.id;
+      if (!confirm('삭제할까요?\n(참고: Firestore 문서는 삭제되지만 Cloudinary의 이미지 자체는 남아 있습니다 — 서버 측 admin API 필요)')) return;
+      await deleteDoc(doc(db, 'posts_cloud', id));
+    });
+
+    // ─── 유틸 ───
+    function thumbnail(url, size) {
+      // /upload/ → /upload/w_<size>,h_<size>,c_fill,q_auto,f_auto/
+      return url.replace('/upload/', `/upload/w_${size},h_${size},c_fill,q_auto,f_auto/`);
+    }
+    function escape(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function kb(bytes) { return (bytes / 1024).toFixed(1) + ' KB'; }
+  </script>
+
+  <h3>Cloudinary URL 변환 한눈에</h3>
+  <table border="1" cellpadding="6" style="border-collapse:collapse;font-size:13px">
+    <tr>
+      <th>변환</th>
+      <th>URL 조각</th>
+      <th>효과</th>
+    </tr>
+    <tr>
+      <td>썸네일</td>
+      <td><code>w_400,h_400,c_fill</code></td>
+      <td>400×400 정사각 크롭</td>
+    </tr>
+    <tr>
+      <td>품질 자동</td>
+      <td><code>q_auto</code></td>
+      <td>화질 자동 (보통 60~80%)</td>
+    </tr>
+    <tr>
+      <td>포맷 자동</td>
+      <td><code>f_auto</code></td>
+      <td>WebP/AVIF 지원 브라우저엔 자동 변환</td>
+    </tr>
+    <tr>
+      <td>둥근 모서리</td>
+      <td><code>r_20</code></td>
+      <td>20px 라운드</td>
+    </tr>
+    <tr>
+      <td>흑백</td>
+      <td><code>e_grayscale</code></td>
+      <td>흑백 필터</td>
+    </tr>
+    <tr>
+      <td>합성 (워터마크)</td>
+      <td><code>l_logo</code></td>
+      <td>로고 오버레이</td>
+    </tr>
+  </table>
+  <p style="font-size:13px">전체 문서: <a href="https://cloudinary.com/documentation/image_transformations"
+      target="_blank">cloudinary.com/documentation/image_transformations</a></p>
+
+  <h3>자주 막히는 곳</h3>
+  <ul>
+    <li><b>업로드 401/400 에러</b> — Upload preset이 <b>Signed 모드</b>인 경우. Cloudinary Console → Settings → Upload → 해당 preset
+      → <b>Unsigned</b>로 변경</li>
+    <li><b>preset 이름 오타</b> — preset 이름은 대소문자 구분</li>
+    <li><b>CORS 에러</b> — 발생 거의 없음. 발생 시 Cloudinary Settings → Security → Allowed fetch domains 확인</li>
+    <li><b>Firestore permission-denied</b> — <code>posts_cloud</code> 컬렉션 보안 규칙 추가 필요 (아래)</li>
+    <li><b>이미지 안 보임</b> — DevTools → Network → 이미지 요청 상태 확인. 보통 URL 오타 또는 cloudName 오타</li>
+    <li><b>삭제해도 Cloudinary에 남음</b> — Unsigned 모드는 *업로드만* 클라이언트 권한. 삭제는 서버측 admin API 필요. 학기 프로젝트엔 대부분 OK</li>
+  </ul>
+
+  <h3>보안 규칙 추가 (Firestore Rules 탭)</h3>
+  <pre style="background:#f5f5f5;padding:12px;border-radius:6px;font-size:12px">match /posts_cloud/{postId} {
+  allow read: if request.auth != null;
+  allow create: if request.auth != null
+                && request.auth.uid == request.resource.data.authorId;
+  allow delete: if request.auth.uid == resource.data.authorId;
+}</pre>
+
+</body>
+
+</html>

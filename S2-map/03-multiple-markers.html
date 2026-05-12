@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-03 · 다수 마커 (라이브 데모 2)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 800px; height: 500px; border: 1px solid #ddd; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>S2-03 · 학교 주변 카페 5곳 (라이브 데모 2)</h1>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // 숙명여대 주변 임의 카페 좌표 (시연용 더미)
+    const CAFES = [
+      { name: '효창공원역 카페',   lat: 37.5395, lng: 126.9628, desc: '아침 일찍 열림' },
+      { name: '청파동 책방카페',   lat: 37.5460, lng: 126.9685, desc: '조용함' },
+      { name: '숙대 후문 베이커리', lat: 37.5462, lng: 126.9647, desc: '크루아상 추천' },
+      { name: '용리단길 로스터리', lat: 37.5285, lng: 126.9657, desc: '원두 다양' },
+      { name: '남영역 노트북 카페', lat: 37.5413, lng: 126.9710, desc: '공부 가능' }
+    ];
+
+    const map = L.map('map').setView([37.5447, 126.9645], 14);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // forEach로 마커들 — 학기 프로젝트의 핵심 모양
+    CAFES.forEach(cafe => {
+      L.marker([cafe.lat, cafe.lng])
+        .addTo(map)
+        .bindPopup(`<div style="padding:4px"><b>${cafe.name}</b><br>${cafe.desc}</div>`)
+        .bindTooltip(cafe.name);   // hover 시 이름 살짝 표시
+    });
+  </script>
+
+  <h3>핵심 패턴</h3>
+  <p><b>배열 → forEach → marker.addTo(map)</b> 만 알면 N개 마커 모두 처리. 이 패턴이 다음 슬라이드(fetch + 지도 결합)의 토대.</p>
+</body>
+</html>

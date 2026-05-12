@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S1-06 · 미세먼지 카드 (학생 배포 — mock)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; line-height: 1.5;
+           max-width: 1000px; background: #fafafa; }
+    #status { color: #555; min-height: 1.4em; }
+    #cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+             gap: 12px; margin-top: 16px; }
+    .card { background: white; border: 1px solid #e3e3e3; border-radius: 10px;
+            padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .card h3 { margin: 0 0 6px 0; font-size: 16px; }
+    .pm { display: flex; gap: 12px; font-size: 14px; }
+    .pm span { padding: 3px 8px; border-radius: 4px; }
+    .good   { background: #d4edda; color: #155724; }
+    .normal { background: #fff3cd; color: #856404; }
+    .bad    { background: #f8d7da; color: #721c24; }
+    .info { background: #e7f3ff; padding: 8px 12px; border-left: 4px solid #2196f3;
+            font-size: 13px; border-radius: 4px; }
+    .err { color: #c00; }
+  </style>
+</head>
+<body>
+  <h1>S1-06 · 미세먼지 카드 <small>(미니 실습 완성본 — mock 데이터)</small></h1>
+  <div class="info">📦 <code>./mock/air-quality.json</code>을 fetch합니다. 실제 API 사용은 <code>USE_REAL</code>를 <code>true</code>로.</div>
+
+  <p id="status">대기 중</p>
+  <div id="cards"></div>
+
+  <script>
+    const USE_REAL = false;
+    const API_KEY  = '여기에_공공데이터_일반인증키';
+    const REAL_ENDPOINT = 'https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty';
+    const MOCK_URL = './mock/air-quality.json';
+
+    function pmClass(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return '';
+      if (n <= 30) return 'good';
+      if (n <= 80) return 'normal';
+      return 'bad';
+    }
+
+    async function load() {
+      const status = document.querySelector('#status');
+      const cards = document.querySelector('#cards');
+      status.classList.remove('err');
+      status.textContent = '로딩 중...';
+
+      try {
+        let url;
+        if (USE_REAL) {
+          const params = new URLSearchParams({
+            serviceKey: API_KEY, returnType: 'json', numOfRows: '12',
+            pageNo: '1', sidoName: '서울', ver: '1.0'
+          });
+          url = `${REAL_ENDPOINT}?${params}`;
+        } else {
+          url = MOCK_URL;
+        }
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const items = data?.response?.body?.items;
+        if (!items?.length) throw new Error('데이터 없음');
+
+        status.textContent = `서울 ${items.length}개 측정소 ${USE_REAL ? '(실제)' : '(mock)'} · ${items[0].dataTime}`;
+        cards.innerHTML = items.map(it => `
+          <div class="card">
+            <h3>${it.stationName}</h3>
+            <div class="pm">
+              <span class="${pmClass(it.pm25Value)}">PM2.5 ${it.pm25Value || '-'}</span>
+              <span class="${pmClass(it.pm10Value)}">PM10 ${it.pm10Value || '-'}</span>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        status.classList.add('err');
+        status.textContent = `에러: ${e.message}`;
+        console.error(e);
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-04 · 주소→좌표 (Nominatim)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 700px; height: 450px; border: 1px solid #ddd; border-radius: 6px; }
+    input { padding: 6px 10px; width: 320px; font-size: 14px; }
+    button { padding: 6px 12px; font-size: 14px; cursor: pointer; }
+    .err { color: #c00; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>S2-04 · 주소를 좌표로 변환 (Geocoding)</h1>
+  <p>Nominatim — OpenStreetMap의 무료 Geocoding 서비스. 키 불필요. <b>1초당 1회 요청 제한</b>.</p>
+
+  <p>
+    <input id="addr" value="서울 용산구 청파로47길 100" />
+    <button id="search">검색</button>
+    <span id="msg"></span>
+  </p>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([37.5447, 126.9645], 14);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let currentMarker = null;
+
+    async function search() {
+      const addr = document.getElementById('addr').value.trim();
+      const msg = document.getElementById('msg');
+      if (!addr) return;
+      msg.textContent = '검색 중...';
+      msg.className = '';
+
+      try {
+        // Nominatim REST API — Session 1에서 본 fetch 패턴 그대로
+        const url = `https://nominatim.openstreetmap.org/search?` +
+                    `q=${encodeURIComponent(addr)}&format=json&limit=1`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const results = await res.json();
+
+        if (!results.length) {
+          msg.textContent = '주소를 찾지 못했습니다.';
+          msg.className = 'err';
+          return;
+        }
+        const r = results[0];
+        const lat = Number(r.lat), lng = Number(r.lon);   // Nominatim은 lon (lng가 아닌)
+
+        if (currentMarker) currentMarker.remove();
+        currentMarker = L.marker([lat, lng]).addTo(map).bindPopup(r.display_name).openPopup();
+        map.setView([lat, lng], 17);
+        msg.textContent = `좌표: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      } catch (e) {
+        msg.textContent = `에러: ${e.message}`;
+        msg.className = 'err';
+      }
+    }
+
+    document.getElementById('search').addEventListener('click', search);
+    document.getElementById('addr').addEventListener('keydown', e => {
+      if (e.key === 'Enter') search();
+    });
+    search();   // 첫 진입 자동 검색
+  </script>
+
+  <h3>주의 사항</h3>
+  <ul>
+    <li>Nominatim 공개 서버 정책: <b>1초당 1회</b> 초과 금지 → 자동 호출 시 setTimeout으로 텀 두기</li>
+    <li>한글 주소 정확도는 카카오 Geocoder보다 약간 ↓ (도로명·지번 일부 누락 가능)</li>
+    <li>실서비스에서는 자체 Nominatim 서버 호스팅 또는 다른 Geocoder 사용 권장</li>
+  </ul>
+</body>
+</html>

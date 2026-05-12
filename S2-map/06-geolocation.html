@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-06 · 내 위치 (geolocation)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 700px; height: 450px; border: 1px solid #ddd; border-radius: 6px; }
+    button { padding: 8px 14px; cursor: pointer; font-size: 15px; }
+    .info { color: #555; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>S2-06 · 내 위치 + 지도 결합</h1>
+  <p>W9 S2 BOM에서 본 <code>navigator.geolocation</code>을 다시 꺼낸다. 지도 SDK는 바뀌어도 BOM API는 그대로.</p>
+
+  <button id="here">내 위치로 이동</button>
+  <p class="info">⚠️ 권한 허용 필요 · 배포 시 HTTPS 필수 (localhost는 OK)</p>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([37.5447, 126.9645], 14);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let hereMarker = null;
+
+    document.getElementById('here').addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        alert('이 브라우저는 위치 정보를 지원하지 않습니다.');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude, lng = pos.coords.longitude;
+          map.setView([lat, lng], 16);
+          if (hereMarker) hereMarker.remove();
+          hereMarker = L.marker([lat, lng]).addTo(map).bindPopup('📍 내 위치').openPopup();
+          console.log('내 좌표:', pos.coords);
+        },
+        (err) => alert('위치 정보 실패: ' + err.message)
+      );
+    });
+  </script>
+
+  <h3>지도 라이브러리가 바뀌어도 동일</h3>
+  <ul>
+    <li><code>navigator.geolocation</code>은 <b>브라우저 표준 BOM API</b> — 카카오/Google/Leaflet 어디서나 동일하게 사용</li>
+    <li>지도 SDK는 그저 <code>setView([lat, lng], zoom)</code> 와 <code>marker</code> 만 알면 됨</li>
+  </ul>
+</body>
+</html>

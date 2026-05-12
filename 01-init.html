@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Note12-01 · Firebase SDK 초기화</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; line-height: 1.6; max-width: 800px; }
+    pre { background: #f5f5f5; padding: 12px; border-radius: 6px; overflow: auto; font-size: 13px; }
+    .ok  { background: #d4edda; border-left: 4px solid #28a745; padding: 8px 12px; }
+    .err { background: #fee; border-left: 4px solid #c00; padding: 8px 12px; }
+    .info { background: #e7f3ff; border-left: 4px solid #2196f3; padding: 8px 12px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Note12-01 · Firebase SDK 초기화</h1>
+  <p>슬라이드: <b>SDK 초기화 — v9 Modular</b></p>
+
+  <div class="info">
+    이 페이지는 Firebase SDK가 정상 로드되는지 확인합니다. 콘솔도 함께 열어 두세요 (DevTools → Console).
+  </div>
+
+  <h2>결과</h2>
+  <pre id="out">초기화 중...</pre>
+
+  <h2>코드 핵심</h2>
+  <pre>// v9 modular — 필요한 함수만 import
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getAuth }       from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getFirestore }  from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const app  = initializeApp(window.firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);</pre>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script type="module">
+    const out = document.getElementById('out');
+
+    if (window._noConfig || !window.firebaseConfig || window.firebaseConfig.apiKey.includes('여기에')) {
+      out.textContent = '⚠️ config.js 미설정. config.example.js를 config.js로 복사 후 firebaseConfig 채우세요.';
+      out.className = 'err';
+    } else {
+      try {
+        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
+        const { getAuth }       = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
+        const { getFirestore }  = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+
+        const app  = initializeApp(window.firebaseConfig);
+        const auth = getAuth(app);
+        const db   = getFirestore(app);
+
+        out.className = 'ok';
+        out.textContent =
+          `✅ 초기화 성공\n\n` +
+          `프로젝트 ID: ${window.firebaseConfig.projectId}\n` +
+          `Auth domain: ${window.firebaseConfig.authDomain}\n\n` +
+          `app:  ${app.name}\n` +
+          `auth: ${auth.constructor.name}\n` +
+          `db:   ${db.type}\n\n` +
+          `console에서 app, auth, db 객체 직접 살펴보기:\n` +
+          `→ window.app / window.auth / window.db 로 노출했습니다.`;
+
+        window.app = app;
+        window.auth = auth;
+        window.db = db;
+        console.log('app:', app, '\nauth:', auth, '\ndb:', db);
+      } catch (e) {
+        out.className = 'err';
+        out.textContent = '❌ 초기화 실패: ' + e.message;
+        console.error(e);
+      }
+    }
+  </script>
+</body>
+</html>

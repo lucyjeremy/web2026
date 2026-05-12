@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Note12-03 · Firestore CRUD 4함수</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; line-height: 1.6; max-width: 900px; }
+    button { padding: 6px 14px; font-size: 14px; cursor: pointer; margin-right: 6px; }
+    input { padding: 6px 10px; font-size: 14px; width: 280px; }
+    .row { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 6px;
+           display: flex; justify-content: space-between; align-items: center; }
+    .row .ops button { font-size: 12px; padding: 4px 8px; }
+    .err { background: #fee; padding: 8px 12px; border-left: 4px solid #c00; }
+    pre { background: #f5f5f5; padding: 12px; border-radius: 6px; font-size: 12px; overflow: auto; }
+    .info { background: #fff3cd; padding: 8px 12px; border-left: 4px solid #f39c12;
+            font-size: 13px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Note12-03 · Firestore CRUD 4함수</h1>
+  <p>슬라이드: <b>CRUD 4함수</b> — addDoc / getDocs / updateDoc / deleteDoc</p>
+
+  <div class="info">
+    📌 이 데모는 <b>한 번 읽기</b>(getDocs)만 사용. 실시간 자동 갱신은 다음 데모(04). 추가/수정/삭제 후 "다시 읽기"를 눌러야 화면 갱신됨.
+  </div>
+
+  <p>
+    <input id="text" placeholder="새 메모 텍스트" />
+    <button id="add">+ 추가 (addDoc)</button>
+    <button id="reload">↻ 다시 읽기 (getDocs)</button>
+  </p>
+
+  <p id="status"></p>
+  <div id="list"></div>
+
+  <h2>코드 핵심</h2>
+  <pre>// Create
+await addDoc(collection(db, 'memos'), {
+  text, authorId: auth.currentUser?.uid, createdAt: serverTimestamp()
+});
+
+// Read (한 번)
+const snap = await getDocs(collection(db, 'memos'));
+const memos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+// Update
+await updateDoc(doc(db, 'memos', id), { text: '수정된 내용' });
+
+// Delete
+await deleteDoc(doc(db, 'memos', id));</pre>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script type="module">
+    const status = document.getElementById('status');
+
+    if (window._noConfig || !window.firebaseConfig || window.firebaseConfig.apiKey.includes('여기에')) {
+      status.innerHTML = '<div class="err">⚠️ config.js 미설정.</div>';
+      throw new Error('config 없음');
+    }
+
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
+    const { getAuth, signInAnonymously, onAuthStateChanged }
+      = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
+    const { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy }
+      = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+
+    const app = initializeApp(window.firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // 이 데모는 익명 로그인 자동 — 보안 규칙은 request.auth != null 만 체크 가정
+    onAuthStateChanged(auth, (user) => {
+      if (!user) signInAnonymously(auth).catch(e =>
+        status.innerHTML = `<div class="err">익명 로그인 실패: ${e.message}</div>`);
+    });
+
+    const list = document.getElementById('list');
+
+    async function reload() {
+      try {
+        status.textContent = '읽는 중...';
+        const q = query(collection(db, 'memos'), orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        const memos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        status.textContent = `${memos.length}개 메모`;
+        list.innerHTML = memos.map(m => `
+          <div class="row" data-id="${m.id}">
+            <span>${escapeHtml(m.text)}</span>
+            <span class="ops">
+              <button class="edit">✏️</button>
+              <button class="del">🗑️</button>
+            </span>
+          </div>
+        `).join('');
+      } catch (e) {
+        status.innerHTML = `<div class="err">읽기 실패: ${e.code || e.message}</div>`;
+        // 자주 보는 에러: permission-denied → 보안 규칙이 막음
+      }
+    }
+
+    document.getElementById('add').onclick = async () => {
+      const text = document.getElementById('text').value.trim();
+      if (!text) return;
+      try {
+        await addDoc(collection(db, 'memos'), {
+          text, authorId: auth.currentUser?.uid, createdAt: serverTimestamp()
+        });
+        document.getElementById('text').value = '';
+        reload();
+      } catch (e) {
+        status.innerHTML = `<div class="err">추가 실패: ${e.code || e.message}</div>`;
+      }
+    };
+
+    document.getElementById('reload').onclick = reload;
+
+    list.addEventListener('click', async (e) => {
+      const id = e.target.closest('.row')?.dataset.id;
+      if (!id) return;
+      if (e.target.classList.contains('edit')) {
+        const newText = prompt('새 텍스트?');
+        if (!newText) return;
+        await updateDoc(doc(db, 'memos', id), { text: newText });
+        reload();
+      } else if (e.target.classList.contains('del')) {
+        if (!confirm('삭제할까요?')) return;
+        await deleteDoc(doc(db, 'memos', id));
+        reload();
+      }
+    });
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    reload();
+  </script>
+
+  <h3>자주 헷갈리는 점</h3>
+  <ul>
+    <li><code>getDoc</code> (단수, 1개) vs <code>getDocs</code> (복수, 컬렉션)</li>
+    <li>추가/수정/삭제 후 화면 안 바뀜 → 이 데모는 한 번 읽기. 자동 갱신은 04 데모(onSnapshot)</li>
+    <li><code>serverTimestamp()</code> — 클라이언트 시간 X, 서버 시간 사용 (시계 조작 방지)</li>
+    <li>permission-denied → 보안 규칙이 막음 → 05 데모에서 다룸</li>
+  </ul>
+</body>
+</html>

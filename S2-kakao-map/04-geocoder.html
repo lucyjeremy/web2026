@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-04 · 주소→좌표 (Geocoder)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 700px; height: 450px; border: 1px solid #ddd; border-radius: 6px; }
+    input { padding: 6px 10px; width: 320px; font-size: 14px; }
+    button { padding: 6px 12px; font-size: 14px; cursor: pointer; }
+    .err { background: #fee; padding: 8px 12px; border-left: 4px solid #c00; }
+  </style>
+</head>
+<body>
+  <h1>S2-04 · 주소를 좌표로 변환 (Geocoder)</h1>
+  <p>슬라이드: <b>위치 검색 / 주소→좌표 변환</b></p>
+
+  <p>
+    <input id="addr" value="서울 용산구 청파로47길 100" />
+    <button id="search">검색</button>
+  </p>
+  <div id="map"></div>
+  <p id="hint"></p>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script>
+    if (window._noConfig || !window.KAKAO_JS_KEY || window.KAKAO_JS_KEY.includes('붙여넣기')) {
+      document.getElementById('hint').innerHTML = '<div class="err">⚠️ config.js를 설정하세요.</div>';
+    } else {
+      const sdk = document.createElement('script');
+      // ⭐ services 라이브러리 따로 로드 — libraries 파라미터 필수
+      sdk.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${window.KAKAO_JS_KEY}&autoload=false&libraries=services`;
+      sdk.onload = () => kakao.maps.load(initMap);
+      document.head.appendChild(sdk);
+    }
+
+    function initMap() {
+      const map = new kakao.maps.Map(document.getElementById('map'), {
+        center: new kakao.maps.LatLng(37.5447, 126.9645),
+        level: 4
+      });
+      const geocoder = new kakao.maps.services.Geocoder();
+      let currentMarker = null;
+
+      function search() {
+        const addr = document.getElementById('addr').value.trim();
+        if (!addr) return;
+
+        geocoder.addressSearch(addr, (result, status) => {
+          if (status !== kakao.maps.services.Status.OK) {
+            alert('주소를 찾을 수 없습니다: ' + addr);
+            return;
+          }
+          // result[0].x = 경도, result[0].y = 위도 — LatLng는 위도부터
+          const coords = new kakao.maps.LatLng(result[0].y, result[0].x);
+
+          if (currentMarker) currentMarker.setMap(null);
+          currentMarker = new kakao.maps.Marker({ position: coords, map });
+          map.setCenter(coords);
+
+          console.log('검색 결과:', result[0]);
+        });
+      }
+
+      document.getElementById('search').addEventListener('click', search);
+      document.getElementById('addr').addEventListener('keydown', e => {
+        if (e.key === 'Enter') search();
+      });
+      search();  // 첫 진입 시 자동 검색
+    }
+  </script>
+</body>
+</html>

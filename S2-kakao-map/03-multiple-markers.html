@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-03 · 다수 마커 + 인포윈도우 (라이브 데모 2)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 800px; height: 500px; border: 1px solid #ddd; border-radius: 6px; }
+    .err { background: #fee; padding: 8px 12px; border-left: 4px solid #c00; }
+  </style>
+</head>
+<body>
+  <h1>S2-03 · 학교 주변 카페 5곳 (라이브 데모 2)</h1>
+  <p>슬라이드: <b>라이브 데모 2 — 마커 다수 + 인포윈도우</b></p>
+
+  <div id="map"></div>
+  <p id="hint"></p>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script>
+    // 숙명여대 주변 임의 카페 좌표 (시연용 더미)
+    const CAFES = [
+      { name: '효창공원역 카페', lat: 37.5395, lng: 126.9628, desc: '아침 일찍 열림' },
+      { name: '청파동 책방카페', lat: 37.5460, lng: 126.9685, desc: '조용함' },
+      { name: '숙대 후문 베이커리', lat: 37.5462, lng: 126.9647, desc: '크루아상 추천' },
+      { name: '용리단길 로스터리', lat: 37.5285, lng: 126.9657, desc: '원두 다양' },
+      { name: '남영역 노트북 카페', lat: 37.5413, lng: 126.9710, desc: '공부 가능' }
+    ];
+
+    if (window._noConfig || !window.KAKAO_JS_KEY || window.KAKAO_JS_KEY.includes('붙여넣기')) {
+      document.getElementById('hint').innerHTML = '<div class="err">⚠️ config.js를 설정하세요.</div>';
+    } else {
+      const sdk = document.createElement('script');
+      sdk.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${window.KAKAO_JS_KEY}&autoload=false`;
+      sdk.onload = () => kakao.maps.load(initMap);
+      document.head.appendChild(sdk);
+    }
+
+    function initMap() {
+      const map = new kakao.maps.Map(document.getElementById('map'), {
+        center: new kakao.maps.LatLng(37.5447, 126.9645),
+        level: 5
+      });
+
+      // ⭐ InfoWindow 1개만 만들고 재사용 (여러 개 동시에 열리는 문제 방지)
+      const infowindow = new kakao.maps.InfoWindow({ removable: true });
+
+      CAFES.forEach(cafe => {
+        const position = new kakao.maps.LatLng(cafe.lat, cafe.lng);
+        const marker = new kakao.maps.Marker({ position, map, title: cafe.name });
+
+        kakao.maps.event.addListener(marker, 'click', () => {
+          infowindow.setContent(
+            `<div style="padding:6px 10px;font-size:13px">
+               <b>${cafe.name}</b><br>${cafe.desc}
+             </div>`
+          );
+          infowindow.open(map, marker);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

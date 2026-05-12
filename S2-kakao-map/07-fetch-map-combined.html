@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-07 · fetch + 지도 결합 (학생 배포 — mock fetch)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 900px; height: 550px; border: 1px solid #ddd; border-radius: 6px; }
+    #status { color: #555; min-height: 1.4em; }
+    .info { background: #e7f3ff; padding: 8px 12px; border-left: 4px solid #2196f3;
+            font-size: 13px; border-radius: 4px; margin-bottom: 8px; }
+    .err { background: #fee; padding: 8px 12px; border-left: 4px solid #c00; }
+  </style>
+</head>
+<body>
+  <h1>S2-07 · 측정소를 지도 위에 ⭐ <small>(학생 배포용)</small></h1>
+  <p>슬라이드: <b>결합 패턴 — 실전 코드</b> · "같은 fetch, 다른 시각화"</p>
+
+  <div class="info">
+    📦 fetch 부분은 <code>./mock/stations.json</code> 사용 (실제 공공데이터 키 없어도 동작).<br>
+    🗺️ 지도는 카카오 맵 SDK 사용 (config.js에 본인 카카오 JS 키 필요).
+  </div>
+
+  <p id="status">대기 중</p>
+  <div id="map"></div>
+  <p id="hint"></p>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script>
+    // 실제 API로 바꾸려면 두 줄 변경
+    const USE_REAL_FETCH = false;
+    const AIR_API_KEY    = '여기에_공공데이터_일반인증키';
+    const REAL_ENDPOINT  = 'https://apis.data.go.kr/B552584/MsrstnInfoInqireSvc/getMsrstnList';
+    const MOCK_URL       = './mock/stations.json';
+
+    if (window._noConfig || !window.KAKAO_JS_KEY || window.KAKAO_JS_KEY.includes('붙여넣기')) {
+      document.getElementById('hint').innerHTML = '<div class="err">⚠️ config.js에 카카오 JS 키 필요.</div>';
+    } else {
+      const sdk = document.createElement('script');
+      sdk.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${window.KAKAO_JS_KEY}&autoload=false`;
+      sdk.onload = () => kakao.maps.load(initAll);
+      document.head.appendChild(sdk);
+    }
+
+    async function initAll() {
+      const map = new kakao.maps.Map(document.getElementById('map'), {
+        center: new kakao.maps.LatLng(37.5447, 126.9645),
+        level: 8
+      });
+      const status = document.getElementById('status');
+      const infowindow = new kakao.maps.InfoWindow({ removable: true });
+
+      try {
+        status.textContent = '측정소 로딩 중...';
+
+        // 1) fetch (Session 1 패턴)
+        let url;
+        if (USE_REAL_FETCH) {
+          const params = new URLSearchParams({
+            serviceKey: AIR_API_KEY, returnType: 'json',
+            numOfRows: '50', pageNo: '1', addr: '서울'
+          });
+          url = `${REAL_ENDPOINT}?${params}`;
+        } else {
+          url = MOCK_URL;
+        }
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const stations = data?.response?.body?.items || [];
+
+        status.textContent = `서울 측정소 ${stations.length}곳을 지도에 표시 ${USE_REAL_FETCH ? '(실제)' : '(mock)'}`;
+        console.log(data);
+
+        // 2) forEach → 마커 (Session 2 결합)
+        stations.forEach(s => {
+          // ⚠️ 측정소 API 함정: dmX=위도, dmY=경도 (이름과 값이 반대 — 한국 TM 관습)
+          const lat = Number(s.dmX), lng = Number(s.dmY);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+          const marker = new kakao.maps.Marker({
+            position: new kakao.maps.LatLng(lat, lng),
+            map,
+            title: s.stationName
+          });
+          kakao.maps.event.addListener(marker, 'click', () => {
+            infowindow.setContent(`
+              <div style="padding:6px 10px;font-size:13px">
+                <b>${s.stationName}</b><br>${s.addr || ''}<br>
+                <small>${s.year || ''} 설치</small>
+              </div>
+            `);
+            infowindow.open(map, marker);
+          });
+        });
+      } catch (e) {
+        status.innerHTML = `<span class="err">에러: ${e.message}</span>`;
+        console.error(e);
+      }
+    }
+  </script>
+</body>
+</html>

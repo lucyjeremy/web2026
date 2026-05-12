@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S1-03 · fetch의 함정 vs 완성 패턴</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; line-height: 1.6; max-width: 900px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; }
+    .card.bad  { border-color: #e74c3c; }
+    .card.good { border-color: #27ae60; }
+    button { padding: 8px 16px; font-size: 16px; cursor: pointer; margin-bottom: 8px; }
+    pre { background: #f5f5f5; padding: 12px; border-radius: 6px; overflow: auto;
+          min-height: 80px; font-size: 13px; }
+    h2 { margin-top: 0; }
+    .hint { color: #555; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>S1-03 · fetch의 가장 큰 함정 ⭐⭐⭐</h1>
+  <p>슬라이드: <b>fetch의 가장 큰 함정</b> + <b>완성된 fetch 패턴</b> + <b>일부러 망가뜨리기</b></p>
+  <p class="hint">URL은 일부러 존재하지 않는 ID(99999)로 보냅니다 → 서버는 <b>404</b>를 줍니다.</p>
+
+  <div class="row">
+    <div class="card bad">
+      <h2>❌ 위험한 fetch (체크 없음)</h2>
+      <button id="bad">호출</button>
+      <pre id="badOut">대기 중</pre>
+      <p class="hint">404가 와도 throw 안 함 → 그대로 진행 → undefined.title 같은 엉뚱한 에러로 변신</p>
+    </div>
+    <div class="card good">
+      <h2>✅ 완성된 fetch (response.ok + try/catch)</h2>
+      <button id="good">호출</button>
+      <pre id="goodOut">대기 중</pre>
+      <p class="hint">상태 코드를 직접 체크해서 throw → catch 분기 동작</p>
+    </div>
+  </div>
+
+  <script>
+    const URL_404 = 'https://jsonplaceholder.typicode.com/posts/99999';
+
+    // ❌ 위험한 패턴 — 슬라이드 "함정"
+    async function badFetch() {
+      const out = document.getElementById('badOut');
+      out.textContent = '로딩...';
+      const response = await fetch(URL_404);
+      // fetch는 4xx/5xx에서 throw하지 않는다 ⭐ — 여기서 멈추지 않음
+      const data = await response.json();
+      // 일부러 .title을 대문자로 — undefined.toUpperCase()로 폭발
+      out.textContent = `제목: ${data.title.toUpperCase()}`;
+    }
+
+    // ✅ 완성된 패턴 — 슬라이드 코드 그대로
+    async function goodFetch() {
+      const out = document.getElementById('goodOut');
+      out.textContent = '로딩...';
+      try {
+        const response = await fetch(URL_404);
+        if (!response.ok) {                              // ① 상태 코드 체크
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();              // ② JSON 파싱
+        out.textContent = `제목: ${data.title.toUpperCase()}`;
+      } catch (error) {                                  // ③ 에러 처리
+        out.textContent = `에러: ${error.message}`;
+        console.error('실패:', error);
+      }
+    }
+
+    document.getElementById('bad').addEventListener('click', badFetch);
+    document.getElementById('good').addEventListener('click', goodFetch);
+  </script>
+</body>
+</html>

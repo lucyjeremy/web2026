@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Note12-07a · 이미지 첨부 (base64 + Firestore)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; line-height: 1.6; max-width: 800px; }
+    button { padding: 8px 16px; font-size: 14px; cursor: pointer; }
+    input, textarea { padding: 8px 10px; font-size: 14px; font-family: inherit; }
+    textarea { width: 100%; box-sizing: border-box; min-height: 50px; resize: vertical; }
+    .row {
+      padding: 12px 14px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 8px;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .row img { width: 120px; height: 120px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+    .row .body { flex: 1; min-width: 0; }
+    .row .meta { font-size: 12px; color: #888; margin-top: 4px; }
+    .preview {
+      display: inline-block; width: 80px; height: 80px; object-fit: cover;
+      border-radius: 6px; vertical-align: middle; margin-right: 8px; border: 1px solid #ddd;
+    }
+    .info {
+      background: #fff3cd; padding: 10px 14px; border-left: 4px solid #f39c12;
+      border-radius: 4px; font-size: 13px; margin-bottom: 14px;
+    }
+    .err { background: #fee; padding: 8px 12px; border-left: 4px solid #c00; }
+    code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; }
+    .size { font-size: 11px; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Note12-07a · 이미지 첨부 (base64 + Firestore)</h1>
+  <p>슬라이드: <b>Firebase Storage 무료 대안</b> — Spark 요금제에서도 동작하는 가장 단순한 길</p>
+
+  <div class="info">
+    📌 <b>방식</b>: 이미지를 클라이언트에서 Canvas로 <b>리사이즈 + JPEG 압축</b> → <b>base64 dataURL</b>로 변환 → <b>Firestore 문서에 통째로 저장</b>.
+    별도 서비스 가입 없음, Storage 활성화 불필요. <b>썸네일·아바타·작은 첨부에 적합</b>.
+    <br><br>
+    ⚠️ <b>한계</b>: Firestore 문서 최대 1MB. 이 데모는 자동으로 max 400×400 / quality 0.7로 리사이즈해서 보통 30~80KB로 떨어뜨림.
+    원본 이미지 보관이 필요하면 <code>07b-image-cloudinary.html</code> 참고.
+  </div>
+
+  <div id="auth"></div>
+  <hr style="margin:18px 0">
+
+  <div id="composer" style="display:none">
+    <p>
+      <input type="file" id="photo" accept="image/*" />
+      <span id="previewBox"></span>
+    </p>
+    <textarea id="text" placeholder="짧은 글 한 줄 (이미지 없이 글만도 OK)"></textarea>
+    <p><button id="submit">올리기</button> <span id="status" class="size"></span></p>
+  </div>
+  <div id="list"></div>
+
+  <h3>핵심 코드</h3>
+  <pre style="background:#f5f5f5;padding:12px;border-radius:6px;font-size:12px;overflow:auto">// 1) 파일 → Canvas 리사이즈 → JPEG → base64 dataURL
+async function resizeToDataURL(file, maxSize = 400, quality = 0.7) {
+  const img = await createImageBitmap(file);
+  const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+  const canvas = new OffscreenCanvas(img.width * scale, img.height * scale);
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality });
+  return await new Promise(r => {
+    const reader = new FileReader();
+    reader.onload = () => r(reader.result);  // "data:image/jpeg;base64,..."
+    reader.readAsDataURL(blob);
+  });
+}
+
+// 2) Firestore에 dataURL 통째로 저장
+await addDoc(collection(db, 'posts_b64'), {
+  text, photoData: dataURL,  // ← dataURL을 photoData 필드에 박음
+  authorId, authorName, createdAt: serverTimestamp()
+});
+
+// 3) 표시 — img src에 dataURL 그대로
+&lt;img src="${m.photoData}"&gt;</pre>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script type="module">
+    if (window._noConfig || !window.firebaseConfig || window.firebaseConfig.apiKey.includes('여기에')) {
+      document.body.insertAdjacentHTML('afterbegin', '<div class="err">⚠️ config.js를 설정하세요.</div>');
+      throw new Error('config 없음');
+    }
+
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
+    const { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+      = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
+    const { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp }
+      = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+
+    const app = initializeApp(window.firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentUser = null;
+    let unsubscribe = null;
+    let pendingDataURL = null;   // 업로드 직전 임시 보관
+    const authDiv = document.getElementById('auth');
+    const composer = document.getElementById('composer');
+    const list = document.getElementById('list');
+    const previewBox = document.getElementById('previewBox');
+    const status = document.getElementById('status');
+
+    // ═══ Auth UI + 구독 재시작 (06 데모의 패턴) ═══
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+      if (user) {
+        authDiv.innerHTML = `로그인: <b>${user.displayName}</b>
+          <button id="logoutBtn" style="font-size:12px;margin-left:8px">로그아웃</button>`;
+        document.getElementById('logoutBtn').onclick = () => signOut(auth);
+        composer.style.display = '';
+        if (unsubscribe) unsubscribe();
+        unsubscribe = subscribePosts();
+      } else {
+        authDiv.innerHTML = `<button id="loginBtn">Google 로그인</button>`;
+        document.getElementById('loginBtn').onclick = () =>
+          signInWithPopup(auth, new GoogleAuthProvider());
+        composer.style.display = 'none';
+        if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+        list.innerHTML = '<p style="color:#888">로그인하면 글을 볼 수 있습니다.</p>';
+      }
+    });
+
+    // ═══ 파일 선택 → 즉시 리사이즈 + 미리보기 ═══
+    document.getElementById('photo').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      previewBox.innerHTML = '';
+      pendingDataURL = null;
+      if (!file) return;
+
+      try {
+        status.textContent = '리사이즈 중...';
+        const before = file.size;
+        pendingDataURL = await resizeToDataURL(file);
+        const after = Math.round(pendingDataURL.length * 0.75);   // base64 → 원본 추정
+        previewBox.innerHTML = `<img class="preview" src="${pendingDataURL}">
+          <span class="size">원본 ${kb(before)} → 압축 ${kb(after)}</span>`;
+        status.textContent = '';
+      } catch (err) {
+        status.textContent = '리사이즈 실패: ' + err.message;
+        console.error(err);
+      }
+    });
+
+    // ═══ 글 + 이미지 추가 ═══
+    document.getElementById('submit').onclick = async () => {
+      const text = document.getElementById('text').value.trim();
+      if (!text && !pendingDataURL) return;
+      if (!currentUser) return;
+
+      try {
+        const data = {
+          text,
+          authorId: currentUser.uid,
+          authorName: currentUser.displayName,
+          createdAt: serverTimestamp()
+        };
+        if (pendingDataURL) data.photoData = pendingDataURL;
+
+        // Firestore 문서 한도 1MB — 안전 마진으로 900KB 컷
+        const approxSize = JSON.stringify(data).length;
+        if (approxSize > 900_000) {
+          throw new Error(`문서가 너무 큼 (~${kb(approxSize)}). Cloudinary 버전 권장.`);
+        }
+
+        await addDoc(collection(db, 'posts_b64'), data);
+
+        // 입력 초기화
+        document.getElementById('text').value = '';
+        document.getElementById('photo').value = '';
+        previewBox.innerHTML = '';
+        pendingDataURL = null;
+      } catch (err) {
+        status.innerHTML = `<span class="err" style="padding:2px 6px">${err.code || err.message}</span>`;
+        console.error(err);
+      }
+    };
+
+    // ═══ 실시간 구독 ═══
+    function subscribePosts() {
+      const q = query(collection(db, 'posts_b64'), orderBy('createdAt', 'desc'));
+      return onSnapshot(q, (snap) => {
+        const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        list.innerHTML = items.map(m => `
+          <div class="row" data-id="${m.id}">
+            ${m.photoData ? `<img src="${m.photoData}" alt="">` : ''}
+            <div class="body">
+              <div>${escape(m.text)}</div>
+              <div class="meta">
+                ${escape(m.authorName || '?')} ·
+                ${m.createdAt?.toDate ? m.createdAt.toDate().toLocaleString() : '대기'}
+                ${m.authorId === currentUser?.uid ?
+                  '<button class="del" style="font-size:11px;margin-left:8px">삭제</button>' : ''}
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }, (err) => {
+        list.innerHTML = `<div class="err">읽기 실패: <code>${err.code}</code> — ${err.message}</div>`;
+        console.error('onSnapshot error:', err);
+      });
+    }
+
+    // ═══ 본인 글 삭제 ═══
+    list.addEventListener('click', async (e) => {
+      if (!e.target.classList.contains('del')) return;
+      const id = e.target.closest('.row').dataset.id;
+      if (!confirm('삭제할까요?')) return;
+      await deleteDoc(doc(db, 'posts_b64', id));
+    });
+
+    // ─── 유틸 ───
+    async function resizeToDataURL(file, maxSize = 400, quality = 0.7) {
+      const img = await createImageBitmap(file);
+      const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = new OffscreenCanvas(w, h);
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality });
+      return new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res(reader.result);
+        reader.onerror = rej;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    function escape(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function kb(bytes) { return (bytes / 1024).toFixed(1) + ' KB'; }
+  </script>
+
+  <h3>자주 막히는 곳</h3>
+  <ul>
+    <li><b>원본 큰 사진 (4000×3000 사진 등)</b> — 그대로 저장 시도하면 Firestore 1MB 한도 초과. 이 데모는 자동 리사이즈로 해결</li>
+    <li><b>OffscreenCanvas 미지원 브라우저</b> — Safari 구버전 등. 일반 <code>&lt;canvas&gt;</code> + <code>document.createElement('canvas')</code>로 폴백 가능</li>
+    <li><b>onSnapshot 결과 무거움</b> — base64가 같이 따라오니 글 100개 = 5~8MB 로딩. 글 많아지면 <b>본문 컬렉션 / 이미지 별도 서브컬렉션</b> 분리 또는 Cloudinary 전환 권장</li>
+    <li><b>permission-denied</b> — Firestore 보안 규칙에 <code>posts_b64</code> 컬렉션 허용 추가 필요</li>
+  </ul>
+
+  <h3>보안 규칙 추가 (Firestore Rules 탭에 붙여넣기)</h3>
+  <pre style="background:#f5f5f5;padding:12px;border-radius:6px;font-size:12px">match /posts_b64/{postId} {
+  allow read: if request.auth != null;
+  allow create: if request.auth != null
+                && request.auth.uid == request.resource.data.authorId
+                && request.resource.size() < 1_000_000;  // 1MB 안전 컷
+  allow delete: if request.auth.uid == resource.data.authorId;
+}</pre>
+
+  <h3>vs 07b (Cloudinary) 선택 가이드</h3>
+  <table border="1" cellpadding="6" style="border-collapse:collapse;font-size:13px">
+    <tr><th></th><th>07a · base64</th><th>07b · Cloudinary</th></tr>
+    <tr><td>외부 가입</td><td>불필요</td><td>cloudinary.com 가입 필요</td></tr>
+    <tr><td>이미지 크기</td><td>~100KB 권장 (썸네일)</td><td>10MB+ 가능 (원본 OK)</td></tr>
+    <tr><td>CDN</td><td>없음 (Firestore가 직접 제공)</td><td>전세계 CDN</td></tr>
+    <tr><td>자동 변환</td><td>없음 (직접 처리)</td><td>URL 쿼리스트링으로 자동</td></tr>
+    <tr><td>적합한 용도</td><td>프로필·아바타·작은 첨부</td><td>게시글 첨부·갤러리·고해상도</td></tr>
+  </table>
+</body>
+</html>

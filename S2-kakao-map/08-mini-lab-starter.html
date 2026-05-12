@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-08 · 미니 실습 시작 코드 — 학교 주변 ___ 지도</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 800px; height: 500px; border: 1px solid #ddd; border-radius: 6px; }
+    .err { background: #fee; padding: 8px 12px; border-left: 4px solid #c00; }
+    .todo { background: #fff3cd; padding: 12px; border-left: 4px solid #f39c12; border-radius: 4px;
+            margin: 12px 0; }
+    code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  </style>
+</head>
+<body>
+  <h1>S2-08 · 미니 실습 시작 코드</h1>
+  <p>슬라이드: <b>미니 실습 — 학교 주변 ___ 지도</b> (18분)</p>
+
+  <div class="todo">
+    <p><b>📝 너의 과제 (P0 필수)</b></p>
+    <ol>
+      <li>아래 <code>PLACES</code> 배열을 자주 가는 곳 3~5곳으로 채우기 (이름·좌표·설명)</li>
+      <li>각 장소를 마커로 표시</li>
+      <li>마커 클릭 시 인포윈도우로 이름 + 설명 표시</li>
+    </ol>
+    <p><b>도전 (P1)</b>: <code>04-public-data-air.html</code>에서 받아온 fetch 데이터를 마커로</p>
+    <p><b>자유 (P2)</b>: <code>06-geolocation.html</code> 패턴으로 내 위치 마커 추가 / 클러스터링</p>
+  </div>
+
+  <div id="map"></div>
+  <p id="hint"></p>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script>
+    // ⬇️ 여기를 너의 장소로 채워라
+    const PLACES = [
+      { name: '여기에 이름', lat: 37.5447, lng: 126.9645, desc: '여기에 한 줄 설명' },
+      // { name: '...', lat: ..., lng: ..., desc: '...' },
+    ];
+
+    if (window._noConfig || !window.KAKAO_JS_KEY || window.KAKAO_JS_KEY.includes('붙여넣기')) {
+      document.getElementById('hint').innerHTML = '<div class="err">⚠️ config.js를 설정하세요.</div>';
+    } else {
+      const sdk = document.createElement('script');
+      sdk.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${window.KAKAO_JS_KEY}&autoload=false`;
+      sdk.onload = () => kakao.maps.load(initMap);
+      document.head.appendChild(sdk);
+    }
+
+    function initMap() {
+      const map = new kakao.maps.Map(document.getElementById('map'), {
+        center: new kakao.maps.LatLng(37.5447, 126.9645),
+        level: 4
+      });
+      const infowindow = new kakao.maps.InfoWindow({ removable: true });
+
+      PLACES.forEach(p => {
+        const marker = new kakao.maps.Marker({
+          position: new kakao.maps.LatLng(p.lat, p.lng),
+          map,
+          title: p.name
+        });
+        kakao.maps.event.addListener(marker, 'click', () => {
+          infowindow.setContent(`<div style="padding:6px 10px"><b>${p.name}</b><br>${p.desc}</div>`);
+          infowindow.open(map, marker);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

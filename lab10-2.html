@@ -92,62 +92,65 @@
 
         // TODO 1: 페이지 로드 시 localStorage에서 bookmarks 배열 복원 + 렌더링
         //         힌트: JSON.parse, render() 호출
-        const savedBookmarks = localStorage.getItem('bookmarks');
-        if (savedBookmarks) {
-            bookmarks = JSON.parse(savedBookmarks);
+        const savedBookmarks = localStorage.getItem('bookmarks'); //저장된 북마크 가져오기
+        if (savedBookmarks) { //저장된 북마크가 있다면
+            bookmarks = JSON.parse(savedBookmarks); //북마크 문자열을 객체로 변환하여 bookmarks에 저장 (GitHub Copilot으로 생성 후 검증 완료)
         }
-        render();
+        render(); //배열 출력하는 함수 호출
 
         // TODO 2: render() — bookmarks 배열을 화면에 그리기
         //         힌트: list.innerHTML = bookmarks.map(b => `<li data-id="${b.id}">...</li>`).join('')
-        function render() {
+        function render() { //북마크 배열을 화면에 그리는 함수 (GitHub Copilot으로 생성 후 검증 완료)
+            //각 북마크 당 클릭 시 새 탭으로 열기, 별표 토글, 삭제 버튼 만들기
             list.innerHTML = bookmarks.map(b => `
                 <li data-id="${b.id}">
                     <span class="name">${b.name}</span>
                     <span class="star ${b.starred ? 'active' : ''}">★</span>
                     <button class="delete-btn">삭제</button>
                 </li>
-            `).join('');
+            `).join(''); //배열을 하나의 문자열로 합치기 위해
         }
 
         // TODO 3: 추가 버튼 — 이름+URL 받아서 bookmarks에 추가 + 저장 + 렌더링
         addBtn.addEventListener('click', () => {
-            const name = nameInput.value.trim();
+            const name = nameInput.value.trim(); //.trim()으로 앞뒤 공백 제거
             const url = urlInput.value.trim();
-            if (name && url) {
+            if (name && url) { //이름과 URL이 모두 입력되었는지 확인
                 const newBookmark = {
                     id: Date.now(),
                     name,
                     url,
-                    starred: false
+                    starred: false //디폴트: 즐겨찾기 해제
                 };
-                bookmarks.push(newBookmark);
-                localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+                bookmarks.push(newBookmark); //배열에 새 북마크 추가 (GitHub Copilot으로 생성 후 검증 완료)
+                localStorage.setItem('bookmarks', JSON.stringify(bookmarks)); //JSON직렬화
                 render();
-                nameInput.value = '';
+                nameInput.value = ''; //입력 필드 초기화
                 urlInput.value = '';
+            } else {
+                alert('사이트 이름과 URL을 모두 입력하세요.');
             }
         });
 
         // TODO 4: 이벤트 위임 — list에 click 1개로 별표 토글 / 삭제 / 사이트명 클릭 시 window.open
-        list.addEventListener('click', (e) => {
-            const li = e.target.closest('li');
-            if (!li) return;
-            const id = parseInt(li.dataset.id);
-            const bookmark = bookmarks.find(b => b.id === id);
+        list.addEventListener('click', (e) => { //(GitHub Copilot으로 생성 후 검증 완료)
+            const li = e.target.closest('li'); //클릭한 요소에서 가장 가까운 li 요소 찾기
+            if (!li) return; //li 바깥 클릭 무시
+            const id = parseInt(li.dataset.id); //li의 data-id 속성에서 id 가져와서
+            const bookmark = bookmarks.find(b => b.id === id); //id에 해당하는 북마크 객체 찾기
             if (e.target.classList.contains('star')) {
                 // 별표 토글
                 bookmark.starred = !bookmark.starred;
-                localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+                localStorage.setItem('bookmarks', JSON.stringify(bookmarks)); //저장
                 render();
             } else if (e.target.classList.contains('delete-btn')) {
                 // 삭제
-                bookmarks = bookmarks.filter(b => b.id !== id);
+                bookmarks = bookmarks.filter(b => b.id !== id); //삭제 대상 제외한 배열을 새로 저장
                 localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
                 render();
             } else if (e.target.classList.contains('name')) {
                 // 사이트명 클릭
-                window.open(bookmark.url, '_blank');
+                window.open(bookmark.url, '_blank'); //새 탭에서 열기
             }
         });
     </script>

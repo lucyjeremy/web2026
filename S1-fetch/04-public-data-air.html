@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S1-04 · 공공데이터 미세먼지 (학생 배포 — mock JSON)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; line-height: 1.6; max-width: 900px; }
+    button { padding: 8px 12px; font-size: 15px; cursor: pointer; }
+    pre { background: #f5f5f5; padding: 12px; border-radius: 6px; max-height: 400px; overflow: auto; font-size: 12px; }
+    .info { background: #e7f3ff; padding: 10px 14px; border-left: 4px solid #2196f3;
+            border-radius: 4px; font-size: 14px; }
+    .err { background: #fee; border-left: 4px solid #e74c3c; padding: 8px 12px; }
+  </style>
+</head>
+<body>
+  <h1>S1-04 · 공공데이터 미세먼지 API <small>(학생 배포용 — mock 데이터)</small></h1>
+
+  <div class="info">
+    <p><b>📦 이 데모는 로컬 mock JSON을 사용합니다.</b></p>
+    <p>실제 공공데이터포털 API와 같은 구조의 응답을 <code>./mock/air-quality.json</code>에서 읽어옵니다.</p>
+    <p>실제 API로 바꾸고 싶다면 아래 <code>USE_REAL</code>을 <code>true</code>로 + <code>API_KEY</code> 입력 → 새로 고침</p>
+  </div>
+
+  <button id="run">호출</button>
+  <pre id="out">대기 중</pre>
+
+  <script>
+    // ⬇️ 실제 API 사용 시 이 두 줄만 바꾸기
+    const USE_REAL = false;
+    const API_KEY  = '여기에_공공데이터_일반인증키_Decoding값';
+
+    const REAL_ENDPOINT = 'https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty';
+    const MOCK_URL = './mock/air-quality.json';
+
+    async function load() {
+      const out = document.getElementById('out');
+      out.textContent = '로딩 중...';
+      out.classList.remove('err');
+
+      try {
+        let url;
+        if (USE_REAL) {
+          if (API_KEY.includes('붙여넣기') || API_KEY.includes('여기에')) {
+            throw new Error('API_KEY를 채우거나 USE_REAL을 false로');
+          }
+          const params = new URLSearchParams({
+            serviceKey: API_KEY, returnType: 'json', numOfRows: '20',
+            pageNo: '1', sidoName: '서울', ver: '1.0'
+          });
+          url = `${REAL_ENDPOINT}?${params}`;
+        } else {
+          url = MOCK_URL;
+        }
+
+        // ⭐ 슬라이드 완성 패턴: response.ok + try/catch
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const items = data?.response?.body?.items;
+        if (!items) throw new Error('응답 구조 이상');
+
+        out.textContent =
+          `[서울] 측정소 ${items.length}곳 ${USE_REAL ? '(실제 API)' : '(mock 데이터)'}\n\n` +
+          items.slice(0, 10).map(it =>
+            `${it.stationName.padEnd(8)}  PM2.5: ${it.pm25Value || '-'}  PM10: ${it.pm10Value || '-'}  (${it.dataTime})`
+          ).join('\n') +
+          '\n\n--- 전체 응답 ---\n' + JSON.stringify(data, null, 2);
+        console.log(data);
+      } catch (e) {
+        out.classList.add('err');
+        out.textContent = `❌ ${e.message}`;
+        console.error(e);
+      }
+    }
+
+    document.getElementById('run').addEventListener('click', load);
+  </script>
+
+  <h3>왜 mock으로 시작하나</h3>
+  <ul>
+    <li>API 키 발급/도메인 등록 안 해도 fetch 흐름을 그대로 익힐 수 있다</li>
+    <li>실제 API로 전환은 <code>USE_REAL = true</code> 한 줄</li>
+    <li>응답 구조는 실제 API와 동일하게 만들어 둠 → 코드 그대로 동작</li>
+  </ul>
+</body>
+</html>

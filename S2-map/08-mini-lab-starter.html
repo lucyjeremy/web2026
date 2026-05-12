@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-08 · 미니 실습 시작 코드</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 800px; height: 500px; border: 1px solid #ddd; border-radius: 6px; }
+    .todo { background: #fff3cd; padding: 12px; border-left: 4px solid #f39c12;
+            border-radius: 4px; margin: 12px 0; }
+    code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  </style>
+</head>
+<body>
+  <h1>S2-08 · 미니 실습 시작 코드</h1>
+  <p>슬라이드: <b>미니 실습 — 학교 주변 ___ 지도</b> (18분)</p>
+
+  <div class="todo">
+    <p><b>📝 너의 과제 (P0 필수)</b></p>
+    <ol>
+      <li>아래 <code>PLACES</code> 배열을 자주 가는 곳 3~5곳으로 채우기 (이름·좌표·설명)</li>
+      <li>각 장소를 마커로 표시 (forEach)</li>
+      <li>마커 클릭 시 팝업으로 이름 + 설명 표시</li>
+    </ol>
+    <p><b>도전 (P1)</b>: <code>04-geocoder.html</code> 패턴으로 주소 → 좌표 변환해서 마커 추가</p>
+    <p><b>자유 (P2)</b>: <code>06-geolocation.html</code> 패턴으로 내 위치 마커 / 클러스터링</p>
+  </div>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // ⬇️ 여기를 너의 장소로 채워라
+    const PLACES = [
+      { name: '여기에 이름', lat: 37.5447, lng: 126.9645, desc: '여기에 한 줄 설명' },
+      // { name: '...', lat: ..., lng: ..., desc: '...' },
+    ];
+
+    const map = L.map('map').setView([37.5447, 126.9645], 14);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    PLACES.forEach(p => {
+      L.marker([p.lat, p.lng])
+        .addTo(map)
+        .bindPopup(`<div style="padding:4px"><b>${p.name}</b><br>${p.desc}</div>`)
+        .bindTooltip(p.name);
+    });
+  </script>
+</body>
+</html>

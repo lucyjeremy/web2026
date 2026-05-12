@@ -1,0 +1,14 @@
+// ⚠️ 테스트 모드 — 이 규칙은 절대 실서비스에 쓰지 마세요!
+// 누구든 너의 DB를 마음대로 만질 수 있습니다.
+// Firebase가 처음 만들 때 자동 생성하는 그 모드.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 30일 동안 누구나 읽기/쓰기 가능 — 인증 무관, 출처 무관
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2026, 6, 1);
+    }
+  }
+}

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Note12-05 · 보안 규칙 테스트 (라이브 데모 4·5)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; line-height: 1.6; max-width: 900px; }
+    button { padding: 8px 16px; font-size: 14px; cursor: pointer; }
+    .test {
+      border: 1px solid #ddd; border-radius: 8px; padding: 14px; margin-bottom: 12px;
+    }
+    .test h3 { margin: 0 0 8px 0; font-size: 15px; }
+    .pass { border-color: #28a745; background: #d4edda; }
+    .fail { border-color: #c00; background: #fee; }
+    .pending { border-color: #888; background: #f5f5f5; }
+    .info { background: #fff3cd; padding: 10px 14px; border-left: 4px solid #f39c12;
+            font-size: 13px; border-radius: 4px; }
+    .danger { background: #fee; padding: 10px 14px; border-left: 4px solid #c00; font-size: 13px; }
+    pre { background: #f5f5f5; padding: 12px; border-radius: 6px; font-size: 12px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>Note12-05 · 보안 규칙 테스트</h1>
+  <p>슬라이드: <b>라이브 데모 4 (DB 통째로 털기)</b> + <b>라이브 데모 5 (잠근 후 재시도)</b></p>
+
+  <div class="info">
+    🧪 이 페이지는 4가지 시나리오를 시도하고 성공/실패를 보여줍니다.
+    <b>테스트 모드</b>(누구나)와 <b>secure 규칙</b>(자기 것만) 적용 후 결과 비교.
+  </div>
+
+  <p>
+    <button id="anon">익명 로그인</button>
+    <button id="google">Google 로그인</button>
+    <button id="logout">로그아웃</button>
+    <span id="who" style="margin-left:12px"></span>
+  </p>
+
+  <p><button id="run" style="background:#1a73e8;color:white">▶ 4가지 시나리오 모두 시도</button></p>
+
+  <div id="t1" class="test pending"><h3>① 비로그인으로 메모 읽기</h3><div>대기</div></div>
+  <div id="t2" class="test pending"><h3>② 비로그인으로 메모 쓰기</h3><div>대기</div></div>
+  <div id="t3" class="test pending"><h3>③ 로그인 후 메모 쓰기 (자기 authorId)</h3><div>대기</div></div>
+  <div id="t4" class="test pending"><h3>④ 로그인 후 다른 사람 authorId로 쓰기 시도</h3><div>대기</div></div>
+
+  <h2>예상 결과</h2>
+  <table border="1" cellpadding="6" style="border-collapse:collapse;font-size:14px">
+    <tr><th>시나리오</th><th>테스트 모드 (위험)</th><th>secure 규칙 (잠금)</th></tr>
+    <tr><td>① 비로그인 읽기</td><td style="color:#c00">✅ 성공 (위험)</td><td style="color:#28a745">❌ 차단</td></tr>
+    <tr><td>② 비로그인 쓰기</td><td style="color:#c00">✅ 성공 (위험)</td><td style="color:#28a745">❌ 차단</td></tr>
+    <tr><td>③ 로그인 후 자기 글 쓰기</td><td>✅ 성공</td><td>✅ 성공</td></tr>
+    <tr><td>④ 다른 사람 사칭</td><td style="color:#c00">✅ 성공 (위험)</td><td style="color:#28a745">❌ 차단</td></tr>
+  </table>
+
+  <div class="danger">
+    ⚠️ 테스트 모드에서는 시나리오 ①·②·④가 모두 성공함 — <b>누구든 너의 DB를 마음대로 만질 수 있다</b>는 의미.
+    → 강의 라이브 데모 4 ("DB 통째로 털기")는 이 위험을 보여주는 것.
+  </div>
+
+  <h2>secure 규칙 적용 방법</h2>
+  <ol>
+    <li>Firebase 콘솔 → Firestore Database → <b>규칙</b> 탭</li>
+    <li>아래 내용 붙여넣기 → 게시</li>
+    <li>이 페이지 새로고침 → 같은 버튼 다시 눌러 결과 비교</li>
+  </ol>
+  <pre>// rules/secure.rules 참고
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /memos/{memoId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth.uid == request.resource.data.authorId;
+      allow update, delete: if request.auth.uid == resource.data.authorId;
+    }
+  }
+}</pre>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script type="module">
+    const who = document.getElementById('who');
+    if (window._noConfig || !window.firebaseConfig || window.firebaseConfig.apiKey.includes('여기에')) {
+      who.innerHTML = '<span style="color:#c00">⚠️ config.js 미설정</span>';
+      throw new Error('config 없음');
+    }
+
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
+    const { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, signOut, onAuthStateChanged }
+      = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js");
+    const { getFirestore, collection, addDoc, getDocs, query, limit, serverTimestamp }
+      = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+
+    const app = initializeApp(window.firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentUser = null;
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+      who.textContent = user ? `로그인: ${user.displayName || '익명'} (${user.uid})` : '로그아웃 상태';
+    });
+
+    document.getElementById('anon').onclick = () => signInAnonymously(auth);
+    document.getElementById('google').onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
+    document.getElementById('logout').onclick = () => signOut(auth);
+
+    function setResult(id, ok, msg) {
+      const el = document.getElementById(id);
+      el.className = 'test ' + (ok ? 'pass' : 'fail');
+      el.querySelector('div').textContent = (ok ? '✅ 성공: ' : '❌ 차단: ') + msg;
+    }
+
+    async function tryRead(id, asUser) {
+      try {
+        if (asUser === 'logged-out' && currentUser) await signOut(auth);
+        const snap = await getDocs(query(collection(db, 'memos'), limit(1)));
+        setResult(id, true, `${snap.size}개 문서 읽음`);
+      } catch (e) {
+        setResult(id, false, `${e.code || e.message}`);
+      }
+    }
+
+    async function tryWrite(id, options = {}) {
+      try {
+        if (options.loggedOut) await signOut(auth);
+        else if (!currentUser) await signInAnonymously(auth);
+
+        const authorId = options.fakeAuthor ? 'fake-other-user-uid' : (auth.currentUser?.uid || 'no-uid');
+        await addDoc(collection(db, 'memos'), {
+          text: `[테스트 ${id}] ${new Date().toLocaleTimeString()}`,
+          authorId,
+          createdAt: serverTimestamp()
+        });
+        setResult(id, true, `쓰기 성공 (authorId=${authorId.slice(0, 8)}...)`);
+      } catch (e) {
+        setResult(id, false, `${e.code || e.message}`);
+      }
+    }
+
+    document.getElementById('run').onclick = async () => {
+      // ① 비로그인 읽기
+      await tryRead('t1', 'logged-out');
+      // ② 비로그인 쓰기
+      await tryWrite('t2', { loggedOut: true });
+      // 로그인 (익명) 후 진행
+      await signInAnonymously(auth);
+      await new Promise(r => setTimeout(r, 500));
+      // ③ 자기 authorId로 쓰기
+      await tryWrite('t3');
+      // ④ 다른 사람 사칭
+      await tryWrite('t4', { fakeAuthor: true });
+    };
+  </script>
+</body>
+</html>

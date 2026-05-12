@@ -1,0 +1,22 @@
+{
+  "response": {
+    "header": { "resultCode": "00", "resultMsg": "OK" },
+    "body": {
+      "totalCount": 12,
+      "items": [
+        { "stationName": "중구",     "sidoName": "서울", "pm10Value": "32", "pm25Value": "18", "dataTime": "2026-05-09 14:00" },
+        { "stationName": "종로구",   "sidoName": "서울", "pm10Value": "28", "pm25Value": "15", "dataTime": "2026-05-09 14:00" },
+        { "stationName": "용산구",   "sidoName": "서울", "pm10Value": "45", "pm25Value": "29", "dataTime": "2026-05-09 14:00" },
+        { "stationName": "성동구",   "sidoName": "서울", "pm10Value": "38", "pm25Value": "21", "dataTime": "2026-05-09 14:00" },
+        { "stationName": "광진구",   "sidoName": "서울", "pm10Value": "41", "pm25Value": "25", "dataTime": "2026-05-09 14:00" },
+        { "stationName": "동대문구", "sidoName": "서울", "pm10Value": "55", "pm25Value": "32", "dataTime": "2026-05-09 14:00" },
+        { "stationName": "중랑구",   "sidoName": "서울", "pm10Value": "62", "pm25Value": "38", "dataTime": "2026-05-09 14:00" },
+        { "stationName": "성북구",   "sidoName": "서울", "pm10Value": "29", "pm25Value": "16", "dataTime": "2026-05-09 14:00" },
+        { "stationName": "강북구",   "sidoName": "서울", "pm10Value": "34", "pm25Value": "19", "dataTime": "2026-05-09 14:00" },
+        { "stationName": "도봉구",   "sidoName": "서울", "pm10Value": "27", "pm25Value": "14", "dataTime": "2026-05-09 14:00" },
+        { "stationName": "노원구",   "sidoName": "서울", "pm10Value": "31", "pm25Value": "17", "dataTime": "2026-05-09 14:00" },
+        { "stationName": "은평구",   "sidoName": "서울", "pm10Value": "85", "pm25Value": "52", "dataTime": "2026-05-09 14:00" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S2-02 · 마커 + 인포윈도우</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    #map { width: 100%; max-width: 700px; height: 450px; border: 1px solid #ddd; border-radius: 6px; }
+    .err { background: #fee; padding: 8px 12px; border-left: 4px solid #c00; }
+  </style>
+</head>
+<body>
+  <h1>S2-02 · 마커 + 인포윈도우</h1>
+  <p>슬라이드: <b>마커 + 인포윈도우</b> · 마커 클릭 시 InfoWindow open</p>
+
+  <div id="map"></div>
+  <p id="hint"></p>
+
+  <script src="./config.js" onerror="window._noConfig = true"></script>
+  <script>
+    if (window._noConfig || !window.KAKAO_JS_KEY || window.KAKAO_JS_KEY.includes('붙여넣기')) {
+      document.getElementById('hint').innerHTML = '<div class="err">⚠️ config.js를 설정하세요.</div>';
+    } else {
+      const sdk = document.createElement('script');
+      sdk.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${window.KAKAO_JS_KEY}&autoload=false`;
+      sdk.onload = () => kakao.maps.load(initMap);
+      document.head.appendChild(sdk);
+    }
+
+    function initMap() {
+      const center = new kakao.maps.LatLng(37.5447, 126.9645);
+      const map = new kakao.maps.Map(document.getElementById('map'), { center, level: 3 });
+
+      // 마커 — title은 마우스오버 툴팁
+      const marker = new kakao.maps.Marker({
+        position: center,
+        map,
+        title: '숙명여대 정문'
+      });
+
+      // 인포윈도우 — HTML 콘텐츠
+      const infowindow = new kakao.maps.InfoWindow({
+        content: '<div style="padding:6px 10px;font-size:13px">📍 숙명여대 정문<br>웹 강의 본거지</div>'
+      });
+
+      // 마커 클릭 → 열기
+      kakao.maps.event.addListener(marker, 'click', () => {
+        infowindow.open(map, marker);
+      });
+
+      // 처음부터 열어두려면:
+      // infowindow.open(map, marker);
+    }
+  </script>
+
+  <h3>학생 자주 묻는 것</h3>
+  <ul>
+    <li>위경도 순서 — 카카오는 <code>LatLng(위도, 경도)</code> = <b>위도 먼저</b> ⭐</li>
+    <li>InfoWindow가 여러 개 동시에 열림 → 직전 close 후 open, 또는 전역 1개 재사용</li>
+  </ul>
+</body>
+</html>

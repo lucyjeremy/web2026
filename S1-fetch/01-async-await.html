@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>S1-01 · async / await 기초 (라이브 코딩 1)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; line-height: 1.6; }
+    button { padding: 8px 16px; font-size: 16px; cursor: pointer; }
+    #log { background: #f5f5f5; padding: 12px; min-height: 120px; white-space: pre-wrap;
+           font-family: ui-monospace, monospace; border-radius: 6px; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <h1>S1-01 · async / await 기초</h1>
+  <p>슬라이드: <b>왜 비동기인가</b> + <b>라이브 코딩 1 — setTimeout을 Promise로</b></p>
+
+  <button id="run">데모 실행</button>
+  <div id="log"></div>
+
+  <script>
+    // 1) setTimeout을 Promise로 감싸는 헬퍼 — 슬라이드 그대로
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // 2) async 함수 안에서만 await 가능. await을 만나면 그 줄에서 멈춘다.
+    async function demo() {
+      const log = document.getElementById('log');
+      log.textContent = '';
+      const print = msg => log.textContent += msg + '\n';
+
+      print('[1] 시작 (' + new Date().toLocaleTimeString() + ')');
+      print('[2] 동기 코드는 안 멈춤');
+
+      await wait(2000);
+      print('[3] 2초 뒤 (await로 멈춰 있다 깨어남)');
+
+      await wait(1500);
+      print('[4] 추가 1.5초 뒤');
+
+      print('[5] 끝');
+    }
+
+    document.getElementById('run').addEventListener('click', demo);
+
+    // 보너스: 비동기 출력 순서 함정 (콘솔에서 확인)
+    console.log('A');
+    setTimeout(() => console.log('B'), 0);
+    console.log('C');
+    // 출력: A → C → B  (왜? 이벤트 루프)
+  </script>
+</body>
+</html>
