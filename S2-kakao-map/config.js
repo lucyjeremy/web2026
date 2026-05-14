@@ -12,4 +12,4 @@
 //
 // 학생-사전준비-가이드 2단계에서 W11 전에 받아둬야 하는 그 키.
 
-window.KAKAO_JS_KEY = '여기에_카카오_JavaScript_키_붙여넣기';
+window.KAKAO_JS_KEY = '10f450c04aa16ea65be72eb21bbbc413';
